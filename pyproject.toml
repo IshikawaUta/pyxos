@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyxos"
+version = "1.0.0"
+description = "CLI tool for managing projects with MongoDB Atlas & Cloudinary/B2"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "IshikawaUta"}]
+dependencies = [
+    "click>=8.1",
+    "pymongo[srv]>=4.6",
+    "cloudinary>=1.36",
+    "b2sdk>=2.0",
+    "rich>=13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+]
+
+[project.scripts]
+pyxos = "pyxos.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pyxos*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = ["-v", "--tb=short"]
