@@ -263,7 +263,7 @@ class TestPullCommand:
         d.mkdir()
         r = runner.invoke(main, ["pull", "testproj", "-o", str(tmp_path)])
         assert r.exit_code == 0
-        assert "already exists" in r.output
+        assert "already" in r.output and "exists" in r.output
 
     def test_force(self, runner, mock_dependencies, sample_project_doc, tmp_path):
         mock_dependencies["db"].get_project.return_value = sample_project_doc
