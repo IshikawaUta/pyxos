@@ -6,6 +6,7 @@ from bson.errors import InvalidId
 from pymongo import MongoClient, errors as mongo_errors
 
 COLLECTION_NAME = "projects"
+VERSIONS_COLLECTION = "pyxos.versions"
 
 
 def _to_objectid(maybe_id):
@@ -24,6 +25,7 @@ class Database:
         self.client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         self.db = self.client.pyxos
         self.collection = self.db[COLLECTION_NAME]
+        self.versions = self.db[VERSIONS_COLLECTION]
 
     def check_connection(self):
         try:
@@ -34,7 +36,7 @@ class Database:
         except mongo_errors.PyMongoError:
             return False
 
-    def create_project(self, name, description, tags, storage_url, storage_public_id, local_path, file_size=0, file_count=0, version="1.0.0", storage_type="cloudinary"):
+    def create_project(self, name, description, tags, storage_url, storage_public_id, local_path, file_size=0, file_count=0, version="1.0.0", storage_type="cloudinary", encrypted=False):
         doc = {
             "name": name,
             "description": description,
@@ -46,6 +48,7 @@ class Database:
             "file_count": file_count,
             "version": version,
             "storage_type": storage_type,
+            "encrypted": encrypted,
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
         }
@@ -94,6 +97,33 @@ class Database:
         if name:
             return self.collection.delete_one({"name": name}).deleted_count
         return 0
+
+    def save_version(self, project):
+        doc = {
+            "project_id": str(project["_id"]),
+            "version": project.get("version", "1.0.0"),
+            "storage_public_id": project.get("storage_public_id") or project.get("cloudinary_public_id"),
+            "storage_url": project.get("storage_url") or project.get("cloudinary_url"),
+            "file_size": project.get("file_size", 0),
+            "file_count": project.get("file_count", 0),
+            "created_at": datetime.now(timezone.utc),
+        }
+        result = self.versions.insert_one(doc)
+        return str(result.inserted_id)
+
+    def get_versions(self, project_id):
+        return list(self.versions.find(
+            {"project_id": str(project_id)}
+        ).sort("created_at", -1))
+
+    def get_version(self, version_id):
+        try:
+            return self.versions.find_one({"_id": ObjectId(version_id)})
+        except InvalidId:
+            return None
+
+    def delete_versions(self, project_id):
+        return self.versions.delete_many({"project_id": str(project_id)}).deleted_count
 
     def close(self):
         self.client.close()
