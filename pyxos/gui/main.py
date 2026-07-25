@@ -3,19 +3,18 @@ import atexit
 import webbrowser
 from pathlib import Path
 
-# Debug: flush log to file on WSL
-_fh = open("/tmp/pyxos_gui_debug.log", "w")
-_fh.write("START\n")
-_fh.flush()
-
-atexit.register(lambda: _fh.close())
-
 from pyxos.config import (
     load_config,
     save_config,
     delete_config,
 )
 from pyxos.database import Database
+
+# Debug: flush log to file on WSL
+_fh = open("/tmp/pyxos_gui_debug.log", "w")
+_fh.write("START\n")
+_fh.flush()
+atexit.register(lambda: _fh.close())
 
 
 def _format_size(size):
