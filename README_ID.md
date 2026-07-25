@@ -38,7 +38,7 @@ Atau via virtual environment:
 git clone https://github.com/IshikawaUta/pyxos.git
 cd pyxos
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 Verifikasi:
