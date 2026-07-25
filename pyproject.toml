@@ -34,6 +34,9 @@ watch = [
 clipboard = [
     "pyperclip>=1.8",
 ]
+gui = [
+    "pyside6>=6.5",
+]
 
 [project.scripts]
 pyxos = "pyxos.cli:main"
@@ -42,7 +45,7 @@ pyxos = "pyxos.cli:main"
 include = ["pyxos*"]
 
 [tool.setuptools.package-data]
-pyxos = ["web/templates/*.html", "web/static/*"]
+pyxos = ["web/templates/*.html", "web/static/*", "gui/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

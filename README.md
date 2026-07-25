@@ -154,6 +154,9 @@ Pyxos/
 │   ├── cache.py        # Local cache for offline listing
 │   ├── crypto.py       # AES-256-CBC encrypt/decrypt (streaming)
 │   ├── parallel.py     # Parallel upload/download with chunking
+│   ├── gui/
+│   │   ├── __init__.py
+│   │   └── main.py          # Desktop GUI (PySide6)
 │   └── web/
 │       ├── __init__.py
 │       ├── app.py          # Web dashboard (optional)
@@ -621,6 +624,8 @@ Collection: `pyxos.projects`
 |---|---|---|
 | `[web]` | [fenrir-framework](https://github.com/IshikawaUta/fenrir) | Web dashboard (`pyxos web`) |
 | `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | Efficient file watching (`pyxos watch`) |
+| `[gui]` | [PySide6](https://wiki.qt.io/Qt_for_Python) | Desktop GUI (`pyxos gui`) |
+| `[clipboard]` | [pyperclip](https://github.com/asweigart/pyperclip) | Clipboard support (`pyxos share -c`) |
 
 Install with extras:
 
@@ -685,6 +690,31 @@ pyxos web --host 0.0.0.0 --port 8765
 ```
 
 Browse projects, view statistics, and manage metadata from a web interface. Built with Fenrir.
+
+---
+
+## Desktop GUI
+
+```bash
+# Install with optional gui dependency
+pip install "pyxos[gui]"
+
+# Launch
+pyxos gui
+```
+
+Native cross-platform desktop application built with PySide6 (Qt). Features:
+
+- **Config dialog** on first launch — set storage & MongoDB
+- **Dashboard** — overview with stats + recent projects
+- **Projects** — searchable, paginated table with detail view
+- **Push** — file picker + metadata form + progress
+- **Pull** — search by name/ID + download + extract
+- **Stats** — aggregate metrics with storage breakdown
+- **Config** — view/mask/reset configuration
+- **Dark theme** — native Qt Fusion style
+
+Works on Windows, macOS, and Linux.
 
 ---
 

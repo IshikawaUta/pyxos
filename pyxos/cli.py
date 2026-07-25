@@ -1813,6 +1813,20 @@ def web(host, port):
     app.run(host=host, port=port, app_path="pyxos.web.app:app")
 
 
+@main.command("gui")
+def gui_app():
+    """Launch the desktop GUI application."""
+    try:
+        from pyxos.gui.main import gui_launch
+
+        gui_launch()
+    except ImportError:
+        rprint("[red]✗ Optional dependency 'PySide6' is not installed.[/red]")
+        rprint("[yellow]Install it with:[/yellow]", end=" ")
+        click.echo('pip install "pyxos[gui]"')
+        raise SystemExit(1)
+
+
 # ── completion ───────────────────────────────────────────────────────────────
 
 @main.group()

@@ -158,6 +158,9 @@ Pyxos/
 │   ├── cache.py        # Cache lokal untuk daftar offline
 │   ├── crypto.py       # AES-256-CBC encrypt/decrypt (streaming)
 │   ├── parallel.py     # Parallel upload/download dengan chunking
+│   ├── gui/
+│   │   ├── __init__.py
+│   │   └── main.py          # GUI desktop (PySide6)
 │   └── web/
 │       ├── __init__.py
 │       ├── app.py          # Dashboard web (opsional)
@@ -625,6 +628,8 @@ Koleksi: `pyxos.projects`
 |---|---|---|
 | `[web]` | [fenrir-framework](https://github.com/IshikawaUta/fenrir) | Dashboard web (`pyxos web`) |
 | `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | File watching efisien (`pyxos watch`) |
+| `[gui]` | [PySide6](https://wiki.qt.io/Qt_for_Python) | GUI desktop (`pyxos gui`) |
+| `[clipboard]` | [pyperclip](https://github.com/asweigart/pyperclip) | Dukungan clipboard (`pyxos share -c`) |
 
 ```bash
 pip install "pyxos[web,watch]"
@@ -687,6 +692,31 @@ pyxos web --host 0.0.0.0 --port 8765
 ```
 
 Jelajahi project, lihat statistik, dan kelola metadata dari antarmuka web. Dibangun dengan Fenrir.
+
+---
+
+## GUI Desktop
+
+```bash
+# Install dengan dependensi gui opsional
+pip install "pyxos[gui]"
+
+# Jalankan
+pyxos gui
+```
+
+Aplikasi desktop native lintas platform dengan PySide6 (Qt). Fitur:
+
+- **Dialog konfigurasi** saat pertama dijalankan — atur storage & MongoDB
+- **Dashboard** — ringkasan dengan statistik + project terbaru
+- **Projects** — tabel yang dapat dicari, paginasi, dengan tampilan detail
+- **Push** — pemilih file + formulir metadata + progress
+- **Pull** — cari berdasarkan nama/ID + unduh + ekstrak
+- **Stats** — metrik agregat dengan rincian storage
+- **Config** — lihat/sensor/reset konfigurasi
+- **Tema gelap** — native Qt Fusion style
+
+Berjalan di Windows, macOS, dan Linux.
 
 ---
 
