@@ -1207,9 +1207,14 @@ def gui_launch():
     if os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("QT_QPA_PLATFORM"):
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
+    # Prevent Qt from choking on pipx binary argv
+    sys.argv = [sys.argv[0]]
+
     sys.stderr.write("[GUI] Creating QApplication...\n")
     sys.stderr.flush()
     app = QApplication([])
+    except Exception:
+        app = QApplication([])
     sys.stderr.write("[GUI] QApplication OK\n")
     sys.stderr.flush()
     app.setApplicationName("Pyxos")
