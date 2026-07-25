@@ -1828,11 +1828,28 @@ def gui_app():
         raise SystemExit(1)
 
     # Launch GUI in isolated subprocess to avoid thread conflicts
-    subprocess.run(
+    import tempfile
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".log", delete=False)
+    result = subprocess.run(
         [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"],
-        stderr=subprocess.DEVNULL,
+        stdout=tmp,
+        stderr=tmp,
         check=False,
     )
+    tmp.close()
+    if result.returncode != 0:
+        with open(tmp.name) as fh:
+            logs = fh.read().strip()
+        if logs:
+            rprint(f"[red]GUI crashed (code {result.returncode}):[/red]")
+            rprint(f"[dim]{logs}[/dim]")
+        else:
+            rprint(f"[red]GUI exited with code {result.returncode}[/red]")
+    try:
+        os.unlink(tmp.name)
+    except OSError:
+        pass
 
 
 # ── completion ───────────────────────────────────────────────────────────────
