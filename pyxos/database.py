@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
 import re
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from pymongo import MongoClient, errors as mongo_errors
+from pymongo import MongoClient
+from pymongo import errors as mongo_errors
 
 COLLECTION_NAME = "projects"
 VERSIONS_COLLECTION = "pyxos.versions"

@@ -1,6 +1,7 @@
-from fenrir import Fenrir, render_template, request, redirect
-from fenrir.static import StaticFiles
 from pathlib import Path
+
+from fenrir import Fenrir, redirect, render_template, request
+from fenrir.static import StaticFiles
 
 BASE_DIR = Path(__file__).parent
 
@@ -41,7 +42,7 @@ def get_data():
         stats = {
             "total_projects": total,
             "total_size": sum(p.get("file_size", 0) for p in projects),
-            "storage_backends": len(set(p.get("storage_type", "cloudinary") for p in projects)),
+            "storage_backends": len({p.get("storage_type", "cloudinary") for p in projects}),
         }
         return db, projects, stats
     except Exception:
@@ -123,7 +124,8 @@ def create_app():
         public_id = project.get("storage_public_id") or project.get("cloudinary_public_id")
         if public_id:
             try:
-                from pyxos.storage import delete_project as cloud_delete, init_storage
+                from pyxos.storage import delete_project as cloud_delete
+                from pyxos.storage import init_storage
                 init_storage(cfg)
                 cloud_delete(public_id)
             except Exception:
@@ -170,7 +172,7 @@ def create_app():
             v = p.get("version", "unknown")
             version_counts[v] = version_counts.get(v, 0) + 1
 
-        total_tags = len(set(tag for p in projects for tag in p.get("tags", [])))
+        total_tags = len({tag for p in projects for tag in p.get("tags", [])})
 
         db.close()
         return _render(

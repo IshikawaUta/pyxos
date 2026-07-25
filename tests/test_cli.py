@@ -2,12 +2,12 @@ import json
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import click
 import pytest
-from click.testing import CliRunner
 from bson import ObjectId
+from click.testing import CliRunner
 
 from pyxos.cli import main
 

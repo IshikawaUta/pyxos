@@ -1,10 +1,10 @@
 import shutil
 import tempfile
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-import urllib.request
-import urllib.error
 from rich.console import Console
 
 console = Console()
@@ -21,8 +21,9 @@ def parallel_upload(archive_path, project_name, storage_type):
 
 
 def _b2_parallel_upload(archive_path, project_name):
-    from pyxos.storage import _b2_bucket
     from b2sdk.v2 import UploadSourceLocalFile
+
+    from pyxos.storage import _b2_bucket
 
     archive_path = Path(archive_path)
     file_size = archive_path.stat().st_size
@@ -157,8 +158,7 @@ def _parallel_range_download(url, dest_path, num_workers=4):
 
         chunk_files.sort(key=lambda x: x[0])
         with open(dest_path, "wb") as out:
-            for _, chunk_path in chunk_files:
-                out.write(chunk_path.read_bytes())
+            out.writelines(chunk_path.read_bytes() for _, chunk_path in chunk_files)
 
         return dest_path
     finally:

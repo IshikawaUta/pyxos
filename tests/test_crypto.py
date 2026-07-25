@@ -1,8 +1,11 @@
-import os
-import io
 import base64
+import io
+import os
+
 import pytest
+
 from pyxos import crypto
+
 
 class TestCrypto:
     def test_encrypt_decrypt_roundtrip(self, tmp_path):
@@ -141,7 +144,7 @@ class TestCrypto:
 class TestCryptoFallback:
     def test_fallback_backend_roundtrip(self, tmp_path, monkeypatch):
         """Force the fallback (hashlib) backend and test encryption."""
-        import pyxos.crypto as crypto
+        from pyxos import crypto
         monkeypatch.setattr(crypto, "_BACKEND", "fallback")
 
         original = tmp_path / "test.zip"
@@ -157,12 +160,12 @@ class TestCryptoFallback:
         """Test pycryptodome backend if available."""
         try:
             from Crypto.Cipher import AES as PycryptoAES
-            from Crypto.Util.Padding import pad, unpad
             from Crypto.Random import get_random_bytes as pycrypto_random
+            from Crypto.Util.Padding import pad, unpad
         except ImportError:
             pytest.skip("pycryptodome not installed")
 
-        import pyxos.crypto as crypto
+        from pyxos import crypto
         monkeypatch.setattr(crypto, "_BACKEND", "pycryptodome")
         # Inject pycryptodome functions that weren't imported at module level
         crypto.PycryptoAES = PycryptoAES

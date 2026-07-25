@@ -6,15 +6,15 @@ import tempfile
 from pathlib import Path
 
 try:
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.primitives import padding
     from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import padding
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     _BACKEND = "cryptography"
 except ImportError:
     try:
         from Crypto.Cipher import AES as PycryptoAES
-        from Crypto.Util.Padding import pad, unpad
         from Crypto.Random import get_random_bytes as pycrypto_random
+        from Crypto.Util.Padding import pad, unpad
         _BACKEND = "pycryptodome"
     except ImportError:
         _BACKEND = "fallback"
@@ -147,8 +147,7 @@ def encrypt_archive(archive_path, password):
             temp_fd, temp_path = tempfile.mkstemp()
             try:
                 with open(temp_fd, "wb") as tmp:
-                    for chunk in _encrypt_cryptography_stream(src, key, iv, salt):
-                        tmp.write(chunk)
+                    tmp.writelines(_encrypt_cryptography_stream(src, key, iv, salt))
                 with open(temp_path, "rb") as tmp:
                     while True:
                         b64_chunk = tmp.read(48)
@@ -261,11 +260,7 @@ def _base64_decode(src_file):
             break
         buffer += chunk
         padding = buffer.count(b"=")
-        if padding > 0 or len(buffer) >= 4:
-            dec_chunk = base64.b64decode(buffer)
-            buffer = b""
-            yield dec_chunk
-        elif len(buffer) >= 48:
+        if padding > 0 or len(buffer) >= 4 or len(buffer) >= 48:
             dec_chunk = base64.b64decode(buffer)
             buffer = b""
             yield dec_chunk

@@ -1,14 +1,21 @@
 import os
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
-import cloudinary.uploader
 import cloudinary.api
+import cloudinary.uploader
 from cloudinary import config as cloudinary_config
 from cloudinary.utils import cloudinary_url
 from rich.console import Console
-from rich.progress import Progress, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn, SpinnerColumn
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TransferSpeedColumn,
+)
 
 console = Console()
 
@@ -37,7 +44,7 @@ def init_storage(config):
             secure=True,
         )
     elif storage_type == "b2":
-        from b2sdk.v2 import InMemoryAccountInfo, B2Api
+        from b2sdk.v2 import B2Api, InMemoryAccountInfo
         required = ["b2_application_key_id", "b2_application_key", "b2_bucket_name"]
         missing = [k for k in required if not config.get(k)]
         if missing:
@@ -285,7 +292,7 @@ def _download_url(url, public_id, dest_dir, resume=True):
                     downloaded += len(chunk)
                     progress.update(task, completed=downloaded)
 
-        except (IOError, urllib.error.URLError, ValueError) as e:
+        except (OSError, urllib.error.URLError, ValueError) as e:
             if part_path.exists() and mode == "wb":
                 part_path.unlink()
             raise RuntimeError(f"Download failed: {e}") from e

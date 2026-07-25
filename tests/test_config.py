@@ -90,7 +90,7 @@ class TestConfigLoadSave:
 
 class TestExcludePatterns:
     def test_default(self, tmp_path):
-        p, i = config.build_exclude_patterns(tmp_path)
+        p, _i = config.build_exclude_patterns(tmp_path)
         assert ".git" in p
 
     def test_pyxosignore(self, tmp_path):

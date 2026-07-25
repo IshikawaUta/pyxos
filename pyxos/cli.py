@@ -10,38 +10,44 @@ from pathlib import Path
 
 import click
 import cloudinary.exceptions
+from rich import print as rprint
 from rich.console import Console
 from rich.live import Live
-from rich.table import Table
-from rich.panel import Panel
 from rich.markdown import Markdown
-from rich import print as rprint
+from rich.panel import Panel
+from rich.table import Table
 
 _open = open  # save builtin before @main.command("open") shadows it
-from bson.errors import InvalidId  # noqa: E402
+from bson.errors import InvalidId
 
-from .config import (  # noqa: E402
-    load_config,
-    save_config,
+from .cache import invalidate_cache, load_cache, save_cache
+from .config import (
+    build_exclude_patterns,
+    count_archive_files,
     delete_config,
+    get_archive_file_list,
     get_config_source,
     get_project_name,
+    load_config,
     make_archive,
-    count_archive_files,
-    get_archive_file_list,
-    build_exclude_patterns,
+    save_config,
 )
-from .crypto import encrypt_archive, decrypt_archive
+from .crypto import decrypt_archive, encrypt_archive
 from .database import Database
 from .storage import (
-    upload_project as cloud_upload,
     delete_project as cloud_delete,
+)
+from .storage import (
     download_project as cloud_download,
+)
+from .storage import (
+    generate_share_link,
     init_storage,
     ping_storage,
-    generate_share_link,
 )
-from .cache import save_cache, load_cache, invalidate_cache  # noqa: E402
+from .storage import (
+    upload_project as cloud_upload,
+)
 
 console = Console()
 
@@ -289,7 +295,7 @@ def _run_hook(hook_path):
         return True
     rprint(f"[cyan]Running hook: {hook.name}[/cyan]")
     try:
-        result = subprocess.run([str(hook)], capture_output=False, shell=False)
+        result = subprocess.run([str(hook)], capture_output=False, shell=False, check=False)
         if result.returncode != 0:
             rprint(f"[yellow]⚠ Hook '{hook.name}' exited with code {result.returncode}[/yellow]")
             return False
@@ -1256,7 +1262,7 @@ def config_show():
         table.add_row("b2_bucket_name", b2_bucket or "(not set)")
         table.add_row("b2_application_key_id", b2_key_id[:8] + "..." if b2_key_id else "(not set)")
         table.add_row("b2_application_key", "********" if b2_key else "(not set)")
-    table.add_row("config_file", str((Path.home() / ".pyxos" / "config.json")))
+    table.add_row("config_file", str(Path.home() / ".pyxos" / "config.json"))
 
     console.print(table)
 

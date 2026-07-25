@@ -124,16 +124,18 @@ class TestWebApp:
             assert router is not None
 
     def test_index_route(self):
-        from pyxos.web import app as web_app
         import importlib
+
+        from pyxos.web import app as web_app
         importlib.reload(web_app)
         from pyxos.web.app import create_app
         application = create_app()
         assert application.router is not None
 
     def test_stats_route(self):
-        from pyxos.web import app as web_app
         import importlib
+
+        from pyxos.web import app as web_app
         importlib.reload(web_app)
         from pyxos.web.app import create_app
         application = create_app()

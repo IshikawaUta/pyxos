@@ -7,6 +7,7 @@ from bson import ObjectId
 
 from pyxos import cache
 
+
 class TestCache:
     @pytest.fixture(autouse=True)
     def setup_cache(self, tmp_path, monkeypatch):

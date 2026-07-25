@@ -1,7 +1,7 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import pytest
 import cloudinary
+import pytest
 
 from pyxos import storage
 
@@ -23,7 +23,7 @@ class TestUploadProject:
     def test_upload_within_limit(self, tmp_path, mock_cloudinary):
         archive = tmp_path / "ok.zip"
         archive.write_bytes(b"x" * (storage.CLOUDINARY_MAX_SIZE - 100))
-        url, pid = storage.upload_project(archive, "myproject")
+        url, _pid = storage.upload_project(archive, "myproject")
         assert url == "https://cloudinary.com/fake.zip"
 
 
@@ -85,7 +85,7 @@ class TestDownloadProject:
             resp = MagicMock()
             resp.status = 200
             resp.headers = {"Content-Length": "500"}
-            resp.read.side_effect = IOError("Network down")
+            resp.read.side_effect = OSError("Network down")
             mock_opener = MagicMock()
             mock_opener.open.return_value = resp
             with patch("urllib.request.build_opener", return_value=mock_opener):
@@ -325,7 +325,7 @@ class TestGenerateB2ShareLink:
             mock_bucket.get_download_url.return_value = "https://b2.example.com/file.zip"
             mock_bucket.get_download_authorization.return_value = "fake-token"
             storage.init_storage(config)
-            url, expires =             storage.generate_share_link("pyxos/test.zip", 3600)
+            url, _expires =             storage.generate_share_link("pyxos/test.zip", 3600)
             assert "https://" in url
         storage._state = {}
         storage._b2_bucket = None
@@ -341,7 +341,7 @@ class TestDownloadCleanup:
                 resp = MagicMock()
                 resp.status = 200
                 resp.headers = {"Content-Length": "500"}
-                resp.read.side_effect = [b"some", b"data", IOError("connection reset")]
+                resp.read.side_effect = [b"some", b"data", OSError("connection reset")]
                 mock_opener = MagicMock()
                 mock_opener.open.return_value = resp
                 mbo.return_value = mock_opener

@@ -1,8 +1,8 @@
+import fnmatch
+import json
 import os
 import re
-import json
 import zipfile
-import fnmatch
 from pathlib import Path
 
 CONFIG_DIR = Path.home() / ".pyxos"
@@ -162,9 +162,7 @@ def _path_parts_excluded(rel_path, patterns, includes=None):
     for part in parts:
         if part and should_exclude(part, simple_patterns, includes):
             return True
-    if complex_patterns and should_exclude(rel_path, complex_patterns, includes):
-        return True
-    return False
+    return bool(complex_patterns and should_exclude(rel_path, complex_patterns, includes))
 
 
 def get_project_name(path):

@@ -29,7 +29,7 @@ class TestDatabase:
         assert db.collection is coll
 
     def test_check_connection_success(self, mock_mongo_client):
-        db, client, _ = mock_mongo_client
+        db, _client, _ = mock_mongo_client
         assert db.check_connection() is True
 
     def test_check_connection_timeout(self, mock_mongo_client):
@@ -43,7 +43,7 @@ class TestDatabase:
         assert db.check_connection() is False
 
     def test_create_project(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         oid = ObjectId()
         coll.insert_one.return_value.inserted_id = oid
 
@@ -57,7 +57,7 @@ class TestDatabase:
         assert doc["version"] == "2.0.0"
 
     def test_create_project_minimal(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         oid = ObjectId()
         coll.insert_one.return_value.inserted_id = oid
 
@@ -69,7 +69,7 @@ class TestDatabase:
         assert result == str(oid)
 
     def test_create_project_encrypted(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, mock_collection = mock_mongo_client
         mock_collection.insert_one.return_value.inserted_id = "fakeid"
         pid = db.create_project("encproj", "desc", [], "url", "pid", "/tmp", encrypted=True)
         assert pid == "fakeid"
@@ -77,21 +77,21 @@ class TestDatabase:
         assert call_args["encrypted"] is True
 
     def test_create_project_not_encrypted(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, mock_collection = mock_mongo_client
         mock_collection.insert_one.return_value.inserted_id = "fakeid"
         db.create_project("proj", "desc", [], "url", "pid", "/tmp", encrypted=False)
         call_args = mock_collection.insert_one.call_args[0][0]
         assert call_args["encrypted"] is False
 
     def test_create_project_encrypted_default(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, mock_collection = mock_mongo_client
         mock_collection.insert_one.return_value.inserted_id = "fakeid"
         db.create_project("proj", "desc", [], "url", "pid", "/tmp")
         call_args = mock_collection.insert_one.call_args[0][0]
         assert call_args["encrypted"] is False
 
     def test_update_project(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         oid = ObjectId()
         coll.update_one.return_value.modified_count = 1
 
@@ -103,14 +103,14 @@ class TestDatabase:
         assert db.update_project("bad", x="y") == 0
 
     def test_get_project_by_id(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         oid = ObjectId()
         expected = {"_id": oid, "name": "p"}
         coll.find_one.return_value = expected
         assert db.get_project(project_id=str(oid)) == expected
 
     def test_get_project_by_name(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         expected = {"_id": ObjectId(), "name": "p"}
         coll.find_one.return_value = expected
         assert db.get_project(name="p") == expected
@@ -124,7 +124,7 @@ class TestDatabase:
         assert db.get_project() is None
 
     def test_list_projects_basic(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         p1 = {"_id": ObjectId(), "name": "p1"}
         p2 = {"_id": ObjectId(), "name": "p2"}
         coll.count_documents.return_value = 2
@@ -138,7 +138,7 @@ class TestDatabase:
         assert len(projs) == 2
 
     def test_list_projects_with_search(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         coll.count_documents.return_value = 1
         cursor = MagicMock()
         cursor.sort.return_value = cursor
@@ -149,7 +149,7 @@ class TestDatabase:
         assert total == 1
 
     def test_list_projects_with_tags_list(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         coll.count_documents.return_value = 0
         cursor = MagicMock()
         cursor.sort.return_value = cursor
@@ -161,7 +161,7 @@ class TestDatabase:
         assert query["tags"] == {"$all": ["py", "web"]}
 
     def test_list_projects_with_single_tag(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         coll.count_documents.return_value = 0
         cursor = MagicMock()
         cursor.sort.return_value = cursor
@@ -173,7 +173,7 @@ class TestDatabase:
         assert query["tags"] == {"$in": ["py"]}
 
     def test_list_projects_pagination(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         coll.count_documents.return_value = 50
         cursor = MagicMock()
         cursor.sort.return_value = cursor
@@ -185,13 +185,13 @@ class TestDatabase:
         cursor.limit.assert_called_with(10)
 
     def test_delete_project_by_id(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         oid = ObjectId()
         coll.delete_one.return_value.deleted_count = 1
         assert db.delete_project(project_id=str(oid)) == 1
 
     def test_delete_project_by_name(self, mock_mongo_client):
-        db, client, coll = mock_mongo_client
+        db, _client, coll = mock_mongo_client
         coll.delete_one.return_value.deleted_count = 1
         assert db.delete_project(name="p") == 1
 
@@ -204,7 +204,7 @@ class TestDatabase:
         assert db.delete_project() == 0
 
     def test_save_version(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, _mock_collection = mock_mongo_client
         mock_versions = MagicMock()
         db.versions = mock_versions
 
@@ -212,7 +212,7 @@ class TestDatabase:
         mock_versions.insert_one.assert_called_once()
 
     def test_get_versions(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, _mock_collection = mock_mongo_client
         mock_versions = MagicMock()
         mock_versions.find.return_value.sort.return_value = [{"version": "1.0.0"}]
         db.versions = mock_versions
@@ -221,7 +221,7 @@ class TestDatabase:
         assert len(versions) == 1
 
     def test_get_version(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, _mock_collection = mock_mongo_client
         mock_versions = MagicMock()
         db.versions = mock_versions
 
@@ -234,7 +234,7 @@ class TestDatabase:
         mock_versions.find_one.assert_called_once()
 
     def test_get_version_invalid_id(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, _mock_collection = mock_mongo_client
         mock_versions = MagicMock()
         db.versions = mock_versions
 
@@ -242,7 +242,7 @@ class TestDatabase:
         assert result is None
 
     def test_delete_versions(self, mock_mongo_client):
-        db, mock_client, mock_collection = mock_mongo_client
+        db, _mock_client, _mock_collection = mock_mongo_client
         mock_versions = MagicMock()
         mock_versions.delete_many.return_value.deleted_count = 3
         db.versions = mock_versions

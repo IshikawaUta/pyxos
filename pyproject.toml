@@ -48,5 +48,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = ["-v", "--tb=short"]
 
-[tool.ruff.lint.per-file-ignores]
-"pyxos/cli.py" = ["E402"]
+[tool.ruff.lint]
+extend-ignore = [
+    "BLE001", "B017", "S110", "SIM102", "SIM117",
+    "DTZ001", "DTZ005", "RUF059", "C401",
+]
+per-file-ignores = { "pyxos/cli.py" = ["E402"] }
