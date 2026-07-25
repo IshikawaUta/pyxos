@@ -146,7 +146,8 @@ def main(ctx):
         import subprocess as _sp2
 
         _sp2.run(
-            [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"]
+            [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"],
+            stderr=_sp2.DEVNULL,
         )
         sys.exit(0)
     rprint(LOGO)

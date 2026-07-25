@@ -1207,11 +1207,7 @@ def gui_launch():
     os.environ.pop("QT_QPA_PLATFORMTHEME", None)
     os.environ.pop("QT_AUTO_SCREEN_SCALE_FACTOR", None)
 
-    sys.stderr.write("[GUI] Creating QApplication...\n")
-    sys.stderr.flush()
     app = QApplication([])
-    sys.stderr.write("[GUI] QApplication OK\n")
-    sys.stderr.flush()
     app.setApplicationName("Pyxos")
     app.setStyle("Fusion")
 
@@ -1373,11 +1369,7 @@ def gui_launch():
         }
     """)
 
-    sys.stderr.write("[GUI] Loading config...\n")
-    sys.stderr.flush()
     cfg = load_config()
-    sys.stderr.write(f"[GUI] Config OK: {cfg.get('storage_type')}\n")
-    sys.stderr.flush()
     if not cfg.get("mongodb_uri") or (
         cfg.get("storage_type") == "cloudinary"
         and not cfg.get("cloudinary_api_secret")
@@ -1391,17 +1383,9 @@ def gui_launch():
         except RuntimeError:
             pass
 
-    sys.stderr.write("[GUI] Creating MainWindow...\n")
-    sys.stderr.flush()
     win = MainWindow()
-    sys.stderr.write("[GUI] MainWindow OK\n")
-    sys.stderr.flush()
     win.show()
-    sys.stderr.write("[GUI] Show OK\n")
-    sys.stderr.flush()
     from PySide6.QtCore import QTimer
 
     QTimer.singleShot(100, lambda: win._navigate("dashboard"))
-    sys.stderr.write("[GUI] Starting event loop...\n")
-    sys.stderr.flush()
     app.exec()
