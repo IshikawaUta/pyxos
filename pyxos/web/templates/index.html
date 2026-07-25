@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Project overview & recent activity</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="bi bi-folder2"></i></div>
+            <div class="stat-label">Total Projects</div>
+            <div class="stat-value">{{ stats.total_projects }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-hdd-stack"></i></div>
+            <div class="stat-label">Total Size</div>
+            <div class="stat-value">{{ format_size(stats.total_size) }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="bi bi-cloud-check"></i></div>
+            <div class="stat-label">Storage Backends</div>
+            <div class="stat-value">{{ stats.storage_backends }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Projects -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Recent Projects</span>
+        <a href="/projects" class="btn btn-sm btn-outline-primary">View all</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Version</th>
+                    <th>Size</th>
+                    <th>Storage</th>
+                    <th>Updated</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in recent %}
+                <tr>
+                    <td><a href="/projects/{{ p._id }}">{{ p.name }}</a></td>
+                    <td><span class="badge bg-secondary">{{ p.version or '-' }}</span></td>
+                    <td>{{ format_size(p.file_size) }}</td>
+                    <td><span class="badge bg-primary">{{ p.storage_type or 'cloudinary' }}</span></td>
+                    <td class="text-muted">{{ p.updated_at.strftime('%Y-%m-%d %H:%M') if p.updated_at else '-' }}</td>
+                    <td class="text-end">
+                        <a href="/projects/{{ p._id }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-right"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not recent %}
+                <tr><td colspan="6">
+                    <div class="empty-state py-5">
+                        <i class="bi bi-inbox text-muted"></i>
+                        <h3>No projects yet</h3>
+                        <p>Push your first project with <code>pyxos push .</code></p>
+                    </div>
+                </td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

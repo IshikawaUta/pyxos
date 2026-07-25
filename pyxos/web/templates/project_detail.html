@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+
+<nav class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/projects">Projects</a></li>
+        <li class="breadcrumb-item active">{{ project.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h1 class="page-title">{{ project.name }}</h1>
+        <p class="page-subtitle mb-0">{{ project.description or 'No description provided' }}</p>
+    </div>
+    <form method="post" action="/projects/delete/{{ project._id }}"
+          onsubmit="return confirm('Permanently delete {{ project.name }}? This cannot be undone.');">
+        <button class="btn btn-danger w-100"><i class="bi bi-trash me-1"></i> Delete Project</button>
+    </form>
+</div>
+
+<!-- Stat Cards Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="bi bi-hash"></i></div>
+            <div class="stat-label">Version</div>
+            <div class="stat-value fs-5">{{ project.version or '-' }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-hdd-stack"></i></div>
+            <div class="stat-label">Size</div>
+            <div class="stat-value fs-5">{{ format_size(project.file_size) }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="bi bi-files"></i></div>
+            <div class="stat-label">Files</div>
+            <div class="stat-value fs-5">{{ project.file_count or '-' }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon amber"><i class="bi bi-cloud"></i></div>
+            <div class="stat-label">Storage</div>
+            <div class="stat-value fs-5">{{ project.storage_type or 'cloudinary' }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">Details</div>
+            <div class="card-body">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="label">Project ID</div>
+                        <div class="value"><code>{{ project._id }}</code></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Storage Public ID</div>
+                        <div class="value">{{ project.storage_public_id or project.cloudinary_public_id or '-' }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Local Path</div>
+                        <div class="value text-break">{{ project.local_path or '-' }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Created At</div>
+                        <div class="value">{{ project.created_at.strftime('%Y-%m-%d %H:%M UTC') if project.created_at else '-' }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Updated At</div>
+                        <div class="value">{{ project.updated_at.strftime('%Y-%m-%d %H:%M UTC') if project.updated_at else '-' }}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Encryption</div>
+                        <div class="value">
+                            {% if project.encrypted %}
+                            <span class="badge bg-warning"><i class="bi bi-lock me-1"></i> Encrypted</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if project.tags %}
+                    <div class="detail-item" style="grid-column: 1 / -1">
+                        <div class="label">Tags</div>
+                        <div class="value d-flex flex-wrap gap-1 mt-1">
+                            {% for tag in project.tags %}
+                            <span class="tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">Actions</div>
+            <div class="card-body d-grid gap-2">
+                {% set url = project.storage_url or project.cloudinary_url %}
+                {% if url %}
+                <a href="{{ url }}" target="_blank" class="btn btn-primary text-center">
+                    <i class="bi bi-download me-1"></i> Download Archive
+                </a>
+                {% endif %}
+                <a href="/projects" class="btn btn-outline-secondary text-center">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Projects
+                </a>
+            </div>
+            {% if url %}
+            <div class="card-footer">
+                <small class="text-muted d-block text-break fs-7">{{ url }}</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

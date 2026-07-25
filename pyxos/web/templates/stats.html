@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Statistics{% endblock %}
+{% block content %}
+
+<div class="mb-4">
+    <h1 class="page-title">Statistics</h1>
+    <p class="page-subtitle">Storage & project distribution analytics</p>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="bi bi-folder2"></i></div>
+            <div class="stat-label">Total Projects</div>
+            <div class="stat-value">{{ stats.total_projects }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-hdd-stack"></i></div>
+            <div class="stat-label">Total Size</div>
+            <div class="stat-value">{{ format_size(stats.total_size) }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="bi bi-cloud-check"></i></div>
+            <div class="stat-label">Storage Backends</div>
+            <div class="stat-value">{{ stats.storage_backends }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon amber"><i class="bi bi-tags"></i></div>
+            <div class="stat-label">Total Tags</div>
+            <div class="stat-value">{{ total_tags }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% if storage_types %}
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">Storage Distribution</div>
+            <div class="card-body">
+                {% for st, count in storage_types.items() %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fw-semibold">{{ st }}</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="progress" style="width: 120px; height: 8px;">
+                            <div class="progress-bar bg-{{ 'primary' if st == 'cloudinary' else 'success' }}"
+                                 style="width: {{ (count / stats.total_projects * 100) | round }}%"></div>
+                        </div>
+                        <span class="badge bg-secondary">{{ count }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if size_dist %}
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">Size Distribution</div>
+            <div class="card-body">
+                {% for label, count in size_dist.items() %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fw-semibold">{{ label }}</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="progress" style="width: 120px; height: 8px;">
+                            <div class="progress-bar" style="width: {{ (count / stats.total_projects * 100) | round }}%; background: var(--accent);"></div>
+                        </div>
+                        <span class="badge bg-secondary">{{ count }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if version_counts %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Top Versions</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr><th>Version</th><th>Count</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for ver, count in version_counts.items() %}
+                        <tr>
+                            <td><span class="badge bg-info">{{ ver }}</span></td>
+                            <td class="fw-bold">{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Configuration{% endblock %}
+{% block content %}
+
+<div class="mb-4">
+    <h1 class="page-title">Configuration</h1>
+    <p class="page-subtitle">Current storage & database settings</p>
+</div>
+
+{% if st == 'cloudinary' %}
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="bi bi-cloud"></i></div>
+            <div class="stat-label">Storage</div>
+            <div class="stat-value fs-5">Cloudinary</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="bi bi-building"></i></div>
+            <div class="stat-label">Cloud Name</div>
+            <div class="stat-value fs-6 text-break">{{ cfg.get('cloudinary_cloud_name', '-') }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon amber"><i class="bi bi-diagram-3"></i></div>
+            <div class="stat-label">MongoDB URI</div>
+            <div class="stat-value fs-6 text-break">{{ mask_value(cfg.get('mongodb_uri', '')) }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">API Credentials</div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr><th>Key</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="text-muted fw-semibold">cloudinary_cloud_name</td><td>{{ cfg.get('cloudinary_cloud_name', '-') }}</td></tr>
+                <tr><td class="text-muted fw-semibold">cloudinary_api_key</td><td><code>{{ mask_value(cfg.get('cloudinary_api_key', '')) }}</code></td></tr>
+                <tr><td class="text-muted fw-semibold">cloudinary_api_secret</td><td><code>{{ mask_value(cfg.get('cloudinary_api_secret', '')) }}</code></td></tr>
+                <tr><td class="text-muted fw-semibold">mongodb_uri</td><td><code class="text-break">{{ mask_value(cfg.get('mongodb_uri', '')) }}</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% elif st == 'b2' %}
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-hdd-stack"></i></div>
+            <div class="stat-label">Storage</div>
+            <div class="stat-value fs-5">Backblaze B2</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="bi bi-bucket"></i></div>
+            <div class="stat-label">Bucket</div>
+            <div class="stat-value fs-6 text-break">{{ cfg.get('b2_bucket_name', '-') }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon amber"><i class="bi bi-diagram-3"></i></div>
+            <div class="stat-label">MongoDB URI</div>
+            <div class="stat-value fs-6 text-break">{{ mask_value(cfg.get('mongodb_uri', '')) }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">API Credentials</div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr><th>Key</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="text-muted fw-semibold">b2_bucket_name</td><td>{{ cfg.get('b2_bucket_name', '-') }}</td></tr>
+                <tr><td class="text-muted fw-semibold">b2_application_key_id</td><td><code>{{ mask_value(cfg.get('b2_application_key_id', '')) }}</code></td></tr>
+                <tr><td class="text-muted fw-semibold">b2_application_key</td><td><code>{{ mask_value(cfg.get('b2_application_key', '')) }}</code></td></tr>
+                <tr><td class="text-muted fw-semibold">mongodb_uri</td><td><code class="text-break">{{ mask_value(cfg.get('mongodb_uri', '')) }}</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <div class="empty-state py-4">
+            <i class="bi bi-sliders text-muted"></i>
+            <h3>Not configured</h3>
+            <p>Run <code>pyxos init</code> to set up storage and database.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="page-title">Projects</h1>
+        <p class="page-subtitle">{{ total }} project{{ 's' if total != 1 }} total</p>
+    </div>
+</div>
+
+<form class="mb-4" method="get">
+    <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control" name="search" placeholder="Search projects..."
+               value="{{ search or '' }}" autofocus>
+        <button class="btn btn-primary" type="submit">Search</button>
+        {% if search %}
+        <a href="/projects" class="btn btn-outline-secondary">Clear</a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Version</th>
+                    <th>Size</th>
+                    <th>Storage</th>
+                    <th>Updated</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in projects %}
+                <tr>
+                    <td><a href="/projects/{{ p._id }}">{{ p.name }}</a></td>
+                    <td><span class="badge bg-secondary">{{ p.version or '-' }}</span></td>
+                    <td>{{ format_size(p.file_size) }}</td>
+                    <td><span class="badge bg-primary">{{ p.storage_type or 'cloudinary' }}</span></td>
+                    <td class="text-muted">{{ p.updated_at.strftime('%Y-%m-%d %H:%M') if p.updated_at else '-' }}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="/projects/{{ p._id }}" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                            <form method="post" action="/projects/delete/{{ p._id }}"
+                                  onsubmit="return confirm('Delete {{ p.name }}? This cannot be undone.');" class="d-inline">
+                                <button class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not projects %}
+                <tr><td colspan="6">
+                    <div class="empty-state py-5">
+                        <i class="bi bi-folder2-open text-muted"></i>
+                        <h3>{{ 'No results for "' + search + '"' if search else 'No projects yet' }}</h3>
+                        <p>{% if search %}Try a different search term.{% else %}Push your first project with <code>pyxos push .</code>{% endif %}</p>
+                    </div>
+                </td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% if total_pages > 1 %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item {{ 'disabled' if page <= 1 }}">
+                    <a class="page-link" href="?{% if search %}search={{ search }}&{% endif %}page={{ page - 1 }}">Previous</a>
+                </li>
+                {% for pn in range(1, total_pages + 1) %}
+                {% if pn == 1 or pn == total_pages or (pn >= page - 2 and pn <= page + 2) %}
+                <li class="page-item {{ 'active' if pn == page }}">
+                    <a class="page-link" href="?{% if search %}search={{ search }}&{% endif %}page={{ pn }}">{{ pn }}</a>
+                </li>
+                {% elif pn == page - 3 or pn == page + 3 %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+                {% endfor %}
+                <li class="page-item {{ 'disabled' if page >= total_pages }}">
+                    <a class="page-link" href="?{% if search %}search={{ search }}&{% endif %}page={{ page + 1 }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
