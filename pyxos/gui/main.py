@@ -1203,7 +1203,9 @@ def gui_launch():
             table.resizeColumnsToContents()
 
 
-    # WSLg auto-detects the right platform — don't override
+    # WSLg auto-detects the right platform — clear conflicting Qt5 vars
+    os.environ.pop("QT_QPA_PLATFORMTHEME", None)
+    os.environ.pop("QT_AUTO_SCREEN_SCALE_FACTOR", None)
 
     sys.stderr.write("[GUI] Creating QApplication...\n")
     sys.stderr.flush()
