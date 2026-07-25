@@ -160,7 +160,17 @@ Pyxos/
 │   ├── parallel.py     # Parallel upload/download dengan chunking
 │   └── web/
 │       ├── __init__.py
-│       └── app.py      # Dashboard web (opsional)
+│       ├── app.py          # Dashboard web (opsional)
+│       ├── static/
+│       │   └── style.css
+│       └── templates/
+│           ├── base.html
+│           ├── config.html
+│           ├── error.html
+│           ├── index.html
+│           ├── project_detail.html
+│           ├── projects.html
+│           └── stats.html
 └── tests/
     ├── conftest.py
     ├── test_cache.py
@@ -508,7 +518,7 @@ Jalankan dashboard web lokal untuk browsing dan mengelola project.
 | Flag | Singkat | Deskripsi |
 |---|---|---|
 | `--host` | | Host listen (default: 127.0.0.1) |
-| `--port` | `-p` | Port listen (default: 8080) |
+| `--port` | `-p` | Port listen (default: 8765) |
 
 ### `pyxos completion` — Shell completion
 
@@ -673,7 +683,7 @@ Cache disimpan di `~/.pyxos/cache.json` dengan jendela kesegaran default. Flag `
 pip install "pyxos[web]"
 
 # Jalankan dashboard
-pyxos web --host 0.0.0.0 --port 8080
+pyxos web --host 0.0.0.0 --port 8765
 ```
 
 Jelajahi project, lihat statistik, dan kelola metadata dari antarmuka web. Dibangun dengan Fenrir.

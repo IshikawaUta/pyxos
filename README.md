@@ -156,7 +156,17 @@ Pyxos/
 │   ├── parallel.py     # Parallel upload/download with chunking
 │   └── web/
 │       ├── __init__.py
-│       └── app.py      # Web dashboard (optional)
+│       ├── app.py          # Web dashboard (optional)
+│       ├── static/
+│       │   └── style.css
+│       └── templates/
+│           ├── base.html
+│           ├── config.html
+│           ├── error.html
+│           ├── index.html
+│           ├── project_detail.html
+│           ├── projects.html
+│           └── stats.html
 └── tests/
     ├── conftest.py
     ├── test_cache.py
@@ -504,7 +514,7 @@ Start a local web dashboard to browse and manage projects.
 | Flag | Short | Description |
 |---|---|---|
 | `--host` | | Listen host (default: 127.0.0.1) |
-| `--port` | `-p` | Listen port (default: 8080) |
+| `--port` | `-p` | Listen port (default: 8765) |
 
 ### `pyxos completion` — Shell completion
 
@@ -671,7 +681,7 @@ Cache is stored at `~/.pyxos/cache.json` with a default freshness window. The `-
 pip install "pyxos[web]"
 
 # Start dashboard
-pyxos web --host 0.0.0.0 --port 8080
+pyxos web --host 0.0.0.0 --port 8765
 ```
 
 Browse projects, view statistics, and manage metadata from a web interface. Built with Fenrir.
