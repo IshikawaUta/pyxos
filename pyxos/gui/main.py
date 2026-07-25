@@ -1202,11 +1202,11 @@ def gui_launch():
             table.resizeColumnsToContents()
 
 
-    try:
-        app = QApplication([])
-    except Exception:
-        os.environ["QT_QPA_PLATFORM"] = "offscreen"
-        app = QApplication([])
+    # Wayland needs explicit XCB override on Linux
+    if os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("QT_QPA_PLATFORM"):
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
+
+    app = QApplication([])
     app.setApplicationName("Pyxos")
     app.setStyle("Fusion")
 
@@ -1277,7 +1277,7 @@ def gui_launch():
             text-transform: uppercase;
             color: #888;
         }
-        QLineEdit, QComboBox, QSpinBox, QTextEdit {
+        QLineEdit {
             background: #1c1c22;
             border: 1px solid #2a2a34;
             border-radius: 6px;
@@ -1285,6 +1285,30 @@ def gui_launch():
             color: #ebebf5;
             font-size: 13px;
             selection-background-color: #6c63ff;
+        }
+        QComboBox {
+            background: #1c1c22;
+            border: 1px solid #2a2a34;
+            border-radius: 6px;
+            padding: 8px;
+            color: #ebebf5;
+            font-size: 13px;
+        }
+        QSpinBox {
+            background: #1c1c22;
+            border: 1px solid #2a2a34;
+            border-radius: 6px;
+            padding: 8px;
+            color: #ebebf5;
+            font-size: 13px;
+        }
+        QTextEdit {
+            background: #1c1c22;
+            border: 1px solid #2a2a34;
+            border-radius: 6px;
+            padding: 8px;
+            color: #ebebf5;
+            font-size: 13px;
         }
         QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
             border-color: #6c63ff;
