@@ -31,3 +31,4 @@ __MACOSX/
 .pytest_cache/
 .coverage
 htmlcov/
+testproj/
