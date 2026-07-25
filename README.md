@@ -619,7 +619,7 @@ Collection: `pyxos.projects`
 
 | Extra | Package | Purpose |
 |---|---|---|
-| `[web]` | [fenrir-framework](https://github.com/fenrir-py) | Web dashboard (`pyxos web`) |
+| `[web]` | [fenrir-framework](https://github.com/IshikawaUta/fenrir) | Web dashboard (`pyxos web`) |
 | `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | Efficient file watching (`pyxos watch`) |
 
 Install with extras:

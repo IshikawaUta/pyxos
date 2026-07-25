@@ -623,7 +623,7 @@ Koleksi: `pyxos.projects`
 
 | Extra | Package | Kegunaan |
 |---|---|---|
-| `[web]` | [fenrir-framework](https://github.com/fenrir-py) | Dashboard web (`pyxos web`) |
+| `[web]` | [fenrir-framework](https://github.com/IshikawaUta/fenrir) | Dashboard web (`pyxos web`) |
 | `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | File watching efisien (`pyxos watch`) |
 
 ```bash
