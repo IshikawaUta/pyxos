@@ -1826,7 +1826,7 @@ def gui_app():
         raise SystemExit(1)
 
     # Launch GUI in isolated subprocess to avoid thread conflicts
-    subprocess.run([sys.executable, "-I", "-c", "from pyxos.gui.main import gui_launch; gui_launch()"])
+    subprocess.run([sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"])
 
 
 # ── completion ───────────────────────────────────────────────────────────────
