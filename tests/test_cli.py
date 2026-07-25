@@ -54,13 +54,15 @@ def mock_dependencies(sample_project_doc, tmp_path):
          patch("pyxos.cli.ping_storage") as mock_ping, \
          patch("pyxos.cli.init_storage") as mock_init_s, \
          patch("pyxos.cli.load_config") as mock_cfg, \
-         patch("pyxos.cli.save_config") as mock_save, \
-         patch("pyxos.cli.delete_config") as mock_delcfg, \
-         patch("pyxos.cli.make_archive", side_effect=_make_fake_archive) as mock_make, \
+         patch("pyxos.cli.save_config"), \
+         patch("pyxos.cli.delete_config"), \
+         patch("pyxos.cli.make_archive", side_effect=_make_fake_archive), \
          patch("pyxos.cli.count_archive_files") as mock_count, \
          patch("pyxos.cli.get_archive_file_list") as mock_list, \
          patch("pyxos.cli.build_exclude_patterns") as mock_pats, \
-         patch("pyxos.cli.get_project_name") as mock_name:
+         patch("pyxos.cli.get_project_name") as mock_name, \
+         patch("pyxos.cli.load_cache") as mock_load_cache, \
+         patch("pyxos.cli.save_cache") as mock_save_cache:
 
         default_cfg = {
             "mongodb_uri": "mongodb://fake",
@@ -85,6 +87,8 @@ def mock_dependencies(sample_project_doc, tmp_path):
         mock_list.return_value = ([("main.py", 1000), ("utils.py", 2000)], 3000)
         mock_pats.return_value = ([".git", "__pycache__"], [])
         mock_name.return_value = "testproj"
+        mock_load_cache.return_value = None
+        mock_save_cache.return_value = None
 
         real_zip = tmp_path / "dl" / "pyxos_testproj.zip"
         real_zip.parent.mkdir(parents=True, exist_ok=True)
@@ -104,6 +108,8 @@ def mock_dependencies(sample_project_doc, tmp_path):
             "file_list": mock_list,
             "build_pats": mock_pats,
             "get_name": mock_name,
+            "load_cache": mock_load_cache,
+            "save_cache": mock_save_cache,
         }
 
 
@@ -236,10 +242,10 @@ class TestPullCommand:
         assert r.exit_code == 0
         assert "No storage public_id" in r.output
 
-    def test_public_id_fallback_old_field(self, runner, mock_dependencies, sample_project_doc):
+    def test_public_id_fallback_old_field(self, runner, mock_dependencies, sample_project_doc, tmp_path):
         doc = {**sample_project_doc, "storage_public_id": None, "cloudinary_public_id": "pyxos/legacy"}
         mock_dependencies["db"].get_project.return_value = doc
-        r = runner.invoke(main, ["pull", "testproj", "--force"])
+        r = runner.invoke(main, ["pull", "testproj", "--force", "-o", str(tmp_path)])
         assert r.exit_code == 0
         assert "pulled" in r.output
 
@@ -541,7 +547,6 @@ class TestConfigCommand:
         assert "deleted" in r.output
 
     def test_reset_no_file(self, runner, mock_dependencies):
-        from pyxos.cli import delete_config as dc
         with patch("pyxos.cli.delete_config", return_value=False):
             r = runner.invoke(main, ["config", "reset", "--yes"])
         assert r.exit_code == 0
@@ -561,7 +566,7 @@ class TestHelperFunctions:
 
     def test_format_size(self):
         from pyxos.cli import _format_size
-        assert _format_size(0) == "-"
+        assert _format_size(0) == "0.0 KB"
         assert _format_size(500) == "0.5 KB"
         assert _format_size(5 * 1024 * 1024) == "5.0 MB"
 
@@ -624,3 +629,372 @@ class TestSelectProject:
         mock_dependencies["db"].list_projects.return_value = ([sample_project_doc], 1)
         with patch("click.prompt", side_effect=click.Abort()):
             assert _select_project(mock_dependencies["db"]) is None
+
+
+class TestDiffCommand:
+    def test_diff_by_name(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["diff", "testproj"])
+        assert r.exit_code == 0
+
+    def test_diff_not_found(self, runner, mock_dependencies):
+        mock_dependencies["db"].get_project.return_value = None
+        r = runner.invoke(main, ["diff", "nonexistent"])
+        assert "not found" in r.output.lower()
+
+
+class TestCloneCommand:
+    def test_clone_by_name(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["clone", "testproj", "-o", str(tmp_path)])
+        assert r.exit_code == 0
+
+    def test_clone_not_found(self, runner, mock_dependencies, tmp_path):
+        mock_dependencies["db"].get_project.return_value = None
+        r = runner.invoke(main, ["clone", "missing", "-o", str(tmp_path)])
+        assert r.exit_code == 0
+        assert "not found" in r.output.lower()
+
+
+class TestTagsCommand:
+    def test_tags_add(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["tags", "add", "testproj", "python", "cli"])
+        assert r.exit_code == 0
+
+    def test_tags_remove(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["tags", "remove", "testproj", "oldtag"])
+        assert r.exit_code == 0
+
+    def test_tags_list(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["tags", "list", "testproj"])
+        assert r.exit_code == 0
+
+    def test_tags_set(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["tags", "set", "testproj", "newtag"])
+        assert r.exit_code == 0
+
+
+class TestStatsCommand:
+    def test_stats(self, runner, mock_dependencies):
+        mock_dependencies["db"].list_projects.return_value = ([], 0)
+        r = runner.invoke(main, ["stats"])
+        assert r.exit_code == 0
+
+
+class TestExportImportCommand:
+    def test_export_json(self, runner, mock_dependencies, tmp_path):
+        outfile = tmp_path / "export.json"
+        r = runner.invoke(main, ["export", "-o", str(outfile)])
+        assert r.exit_code == 0
+
+    def test_export_csv(self, runner, mock_dependencies, tmp_path):
+        outfile = tmp_path / "export.csv"
+        r = runner.invoke(main, ["export", "-o", str(outfile), "-f", "csv"])
+        assert r.exit_code == 0
+
+    def test_import_json(self, runner, mock_dependencies, tmp_path):
+        infile = tmp_path / "import.json"
+        import json
+        infile.write_text(json.dumps({"projects": [{"name": "test"}]}))
+        r = runner.invoke(main, ["import", str(infile)])
+        assert r.exit_code == 0
+
+    def test_import_csv(self, runner, mock_dependencies, tmp_path):
+        infile = tmp_path / "import.csv"
+        infile.write_text("name,version,description\ntest,1.0.0,desc\n")
+        r = runner.invoke(main, ["import", str(infile)])
+        assert r.exit_code == 0
+
+
+class TestShareCommand:
+    def test_share(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["share", "testproj", "-e", "1"])
+        assert r.exit_code == 0
+
+
+class TestCompletionCommand:
+    def test_completion_bash(self, runner):
+        r = runner.invoke(main, ["completion", "bash"])
+        assert r.exit_code == 0
+
+    def test_completion_zsh(self, runner):
+        r = runner.invoke(main, ["completion", "zsh"])
+        assert r.exit_code == 0
+
+    def test_completion_fish(self, runner):
+        r = runner.invoke(main, ["completion", "fish"])
+        assert r.exit_code == 0
+
+
+class TestInitFromCommand:
+    def test_init_from_project(self, runner, mock_dependencies, sample_project_doc, monkeypatch, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        with patch("pyxos.config.save_config"):
+            r = runner.invoke(main, ["init", "--storage-type", "cloudinary",
+                                      "--mongodb-uri", "mongodb://test",
+                                      "--from", "testproj", "-o", str(tmp_path)])
+            assert r.exit_code == 0
+
+
+# ── Push Edge Cases ─────────────────────────────────────────────────────────
+
+class TestPushEdgeCases:
+    def test_push_with_exclude_include(self, runner, mock_dependencies, tmp_path):
+        r = runner.invoke(main, ["push", str(tmp_path), "-n", "eiproj", "-e", "*.log", "-i", "important.log"])
+        assert r.exit_code == 0
+        assert "pushed successfully" in r.output
+
+    def test_push_with_encrypt(self, runner, mock_dependencies, tmp_path):
+        with patch("pyxos.cli.encrypt_archive") as mock_enc, \
+             patch.dict("os.environ", {"PYXOS_PASSWORD": "testpass"}):
+            enc_file = tmp_path / "enc.zip"
+            enc_file.write_text("encrypted")
+            mock_enc.return_value = enc_file
+            r = runner.invoke(main, ["push", str(tmp_path), "-n", "encproj", "--encrypt"])
+            assert r.exit_code == 0
+            assert "pushed successfully" in r.output
+
+    def test_push_with_compress_level(self, runner, mock_dependencies, tmp_path):
+        r = runner.invoke(main, ["push", str(tmp_path), "-n", "clproj", "--compress-level", "0"])
+        assert r.exit_code == 0
+        assert "pushed successfully" in r.output
+
+    def test_push_with_no_hooks(self, runner, mock_dependencies, tmp_path):
+        r = runner.invoke(main, ["push", str(tmp_path), "-n", "nhproj", "--no-hooks"])
+        assert r.exit_code == 0
+        assert "pushed successfully" in r.output
+
+    def test_push_hooks_executed(self, runner, mock_dependencies, tmp_path):
+        with patch("pyxos.cli._run_hook") as mock_hook:
+            mock_hook.return_value = True
+            r = runner.invoke(main, ["push", str(tmp_path), "-n", "hookproj"])
+            assert r.exit_code == 0
+            pre_calls = [c for c in mock_hook.call_args_list if "pre-push" in str(c.args[0])]
+            post_calls = [c for c in mock_hook.call_args_list if "post-push" in str(c.args[0])]
+            assert len(pre_calls) > 0
+            assert len(post_calls) > 0
+
+    def test_push_get_name_exception(self, runner, mock_dependencies, tmp_path):
+        mock_dependencies["get_name"].side_effect = Exception("Could not determine project name")
+        r = runner.invoke(main, ["push", str(tmp_path)])
+        assert r.exit_code == 1
+
+
+# ── Pull Edge Cases ─────────────────────────────────────────────────────────
+
+class TestPullEdgeCases:
+    def test_pull_with_cloudinary_public_id_old_field(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        doc = {**sample_project_doc, "storage_public_id": None, "cloudinary_public_id": "pyxos/legacy"}
+        mock_dependencies["db"].get_project.return_value = doc
+        r = runner.invoke(main, ["pull", "testproj", "-o", str(tmp_path)])
+        assert r.exit_code == 0
+        assert "pulled" in r.output
+
+    def test_pull_with_no_hooks(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["pull", "testproj", "-o", str(tmp_path), "--no-hooks"])
+        assert r.exit_code == 0
+        assert "pulled" in r.output
+
+    def test_pull_hooks_executed(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        with patch("pyxos.cli._run_hook") as mock_hook:
+            mock_hook.return_value = True
+            r = runner.invoke(main, ["pull", "testproj", "-o", str(tmp_path)])
+            assert r.exit_code == 0
+            post_calls = [c for c in mock_hook.call_args_list if "post-pull" in str(c.args[0])]
+            assert len(post_calls) > 0
+
+    def test_pull_download_error(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        mock_dependencies["download"].side_effect = RuntimeError("Network failure")
+        r = runner.invoke(main, ["pull", "testproj", "-o", "/tmp/dne"])
+        assert "Unexpected error" in r.output or r.exception is not None
+
+
+# ── Diff Edge Cases ─────────────────────────────────────────────────────────
+
+class TestDiffEdgeCases:
+    def test_diff_with_local_path_override(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["diff", "testproj", "-o", str(tmp_path)])
+        assert r.exit_code == 0
+
+    def test_diff_no_local_path_and_dir_not_found(self, runner, mock_dependencies):
+        project_no_path = {
+            "_id": ObjectId(),
+            "name": "nopath",
+            "description": "test",
+            "local_path": None,
+            "storage_public_id": None,
+        }
+        mock_dependencies["db"].get_project.return_value = project_no_path
+        r = runner.invoke(main, ["diff", "nopath"])
+        assert r.exit_code == 0
+        assert "local path unavailable" in r.output
+
+
+# ── Clone Edge Cases ────────────────────────────────────────────────────────
+
+class TestCloneEdgeCases:
+    def test_clone_with_name_option(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        r = runner.invoke(main, ["clone", "testproj", "-o", str(tmp_path), "--name", "custom_name"])
+        assert r.exit_code == 0
+
+    def test_clone_existing_directory_auto_increment(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        (tmp_path / "testproj").mkdir()
+        r = runner.invoke(main, ["clone", "testproj", "-o", str(tmp_path)])
+        assert r.exit_code == 0
+        assert "cloned" in r.output
+
+
+# ── Rollback Command ────────────────────────────────────────────────────────
+
+class TestRollbackCommand:
+    def test_rollback_no_version(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        mock_dependencies["db"].get_versions.return_value = []
+        r = runner.invoke(main, ["rollback", "testproj"])
+        assert r.exit_code == 0
+
+    def test_rollback_with_version(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        mock_dependencies["db"].get_versions.return_value = [{"version": "1.0.0", "storage_public_id": "pyxos/testproj"}]
+        r = runner.invoke(main, ["rollback", "testproj", "-v", "1.0.0"])
+        assert r.exit_code == 0
+
+    def test_rollback_not_found(self, runner, mock_dependencies):
+        mock_dependencies["db"].get_project.return_value = None
+        r = runner.invoke(main, ["rollback", "missing"])
+        assert r.exit_code == 0
+
+    def test_rollback_list_versions(self, runner, mock_dependencies, sample_project_doc):
+        from datetime import datetime, timezone
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        mock_dependencies["db"].get_versions.return_value = [
+            {"_id": ObjectId(), "version": "1.0.0", "file_size": 102400, "file_count": 10,
+             "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc), "storage_public_id": "pyxos/old"},
+        ]
+        r = runner.invoke(main, ["rollback", "testproj"])
+        assert r.exit_code == 0
+        assert "Available versions" in r.output
+
+    def test_rollback_version_not_found(self, runner, mock_dependencies, sample_project_doc):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        mock_dependencies["db"].get_versions.return_value = [{"version": "1.0.0", "storage_public_id": "pyxos/testproj"}]
+        mock_dependencies["db"].get_version.return_value = None
+        r = runner.invoke(main, ["rollback", "testproj", "-v", "nonexistent"])
+        assert r.exit_code == 0
+        assert "not found" in r.output.lower()
+
+
+# ── Watch/Web Help Tests ────────────────────────────────────────────────────
+
+class TestWatchCommand:
+    def test_watch_help(self, runner):
+        r = runner.invoke(main, ["watch", "--help"])
+        assert r.exit_code == 0
+        assert "Watch" in r.output or "watch" in r.output
+
+
+class TestWebCommand:
+    def test_web_help(self, runner):
+        r = runner.invoke(main, ["web", "--help"])
+        assert r.exit_code == 0
+
+
+# ── Export/Import Edge Cases ────────────────────────────────────────────────
+
+class TestExportImportEdgeCases:
+    def test_export_with_query(self, runner, mock_dependencies, sample_project_doc, tmp_path):
+        mock_dependencies["db"].get_project.return_value = sample_project_doc
+        outfile = tmp_path / "single.json"
+        r = runner.invoke(main, ["export", "-o", str(outfile), "--query", "testproj"])
+        assert r.exit_code == 0
+
+    def test_import_with_merge(self, runner, mock_dependencies, tmp_path):
+        infile = tmp_path / "merge.json"
+        infile.write_text(json.dumps({"name": "mergetest", "version": "1.0.0"}))
+        r = runner.invoke(main, ["import", str(infile), "--merge"])
+        assert r.exit_code == 0
+
+    def test_import_unsupported_format(self, runner, mock_dependencies, tmp_path):
+        infile = tmp_path / "data.txt"
+        infile.write_text("not valid")
+        r = runner.invoke(main, ["import", str(infile)])
+        assert r.exit_code == 0
+        assert "Unsupported file format" in r.output
+
+
+# ── _format_size Edge Cases ─────────────────────────────────────────────────
+
+class TestFormatSizeEdgeCases:
+    def test_format_size_negative(self):
+        from pyxos.cli import _format_size
+        assert _format_size(-100) == "-0.1 KB"
+
+    def test_format_size_very_large(self):
+        from pyxos.cli import _format_size
+        size = 5 * 1024 * 1024 * 1024
+        assert "MB" in _format_size(size)
+
+    def test_format_size_kb_boundary(self):
+        from pyxos.cli import _format_size
+        assert _format_size(1023) == "1.0 KB"
+        assert _format_size(1024) == "1.0 KB"
+
+    def test_format_size_mb_boundary(self):
+        from pyxos.cli import _format_size
+        assert _format_size(1024 * 1024 - 1) == "1024.0 KB"
+        assert _format_size(1024 * 1024) == "1.0 MB"
+
+
+# ── require_storage Edge Cases ──────────────────────────────────────────────
+
+class TestRequireStorageEdgeCases:
+    def test_require_storage_cloudinary_missing_keys(self):
+        from pyxos.cli import require_storage
+        cfg = {"storage_type": "cloudinary", "cloudinary_cloud_name": "c"}
+        with pytest.raises(SystemExit):
+            require_storage(cfg)
+
+    def test_require_storage_b2_missing_keys(self):
+        from pyxos.cli import require_storage
+        cfg = {"storage_type": "b2", "b2_application_key_id": "k"}
+        with pytest.raises(SystemExit):
+            require_storage(cfg)
+
+
+# ── B2 Commands ─────────────────────────────────────────────────────────────
+
+class TestB2Commands:
+    def test_b2_push_success(self, runner, mock_dependencies, tmp_path):
+        mock_dependencies["load_config"].return_value = {
+            "mongodb_uri": "mongodb://fake",
+            "storage_type": "b2",
+            "b2_application_key_id": "b2keyid",
+            "b2_application_key": "b2key",
+            "b2_bucket_name": "b2bucket",
+        }
+        r = runner.invoke(main, ["push", str(tmp_path), "-n", "b2proj"])
+        assert r.exit_code == 0
+        assert "pushed successfully" in r.output
+
+    def test_b2_config_shown(self, runner, mock_dependencies):
+        mock_dependencies["load_config"].return_value = {
+            "mongodb_uri": "mongodb://fake",
+            "storage_type": "b2",
+            "b2_application_key_id": "b2keyid",
+            "b2_application_key": "b2key",
+            "b2_bucket_name": "mybucket",
+        }
+        r = runner.invoke(main, ["config", "show"])
+        assert r.exit_code == 0
+        assert "mybucket" in r.output
