@@ -1213,8 +1213,6 @@ def gui_launch():
     sys.stderr.write("[GUI] Creating QApplication...\n")
     sys.stderr.flush()
     app = QApplication([])
-    except Exception:
-        app = QApplication([])
     sys.stderr.write("[GUI] QApplication OK\n")
     sys.stderr.flush()
     app.setApplicationName("Pyxos")
