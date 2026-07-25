@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
 from bson import ObjectId
 from pymongo import errors as mongo_errors
 
@@ -68,6 +67,28 @@ class TestDatabase:
             local_path="/tmp",
         )
         assert result == str(oid)
+
+    def test_create_project_encrypted(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_collection.insert_one.return_value.inserted_id = "fakeid"
+        pid = db.create_project("encproj", "desc", [], "url", "pid", "/tmp", encrypted=True)
+        assert pid == "fakeid"
+        call_args = mock_collection.insert_one.call_args[0][0]
+        assert call_args["encrypted"] is True
+
+    def test_create_project_not_encrypted(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_collection.insert_one.return_value.inserted_id = "fakeid"
+        db.create_project("proj", "desc", [], "url", "pid", "/tmp", encrypted=False)
+        call_args = mock_collection.insert_one.call_args[0][0]
+        assert call_args["encrypted"] is False
+
+    def test_create_project_encrypted_default(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_collection.insert_one.return_value.inserted_id = "fakeid"
+        db.create_project("proj", "desc", [], "url", "pid", "/tmp")
+        call_args = mock_collection.insert_one.call_args[0][0]
+        assert call_args["encrypted"] is False
 
     def test_update_project(self, mock_mongo_client):
         db, client, coll = mock_mongo_client
@@ -181,6 +202,54 @@ class TestDatabase:
     def test_delete_project_no_args(self, mock_mongo_client):
         db, _, _ = mock_mongo_client
         assert db.delete_project() == 0
+
+    def test_save_version(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_versions = MagicMock()
+        db.versions = mock_versions
+
+        db.save_version({"_id": "proj_id", "version": "2.0.0", "storage_public_id": "storage_id", "storage_url": "url", "file_size": 1000, "file_count": 10})
+        mock_versions.insert_one.assert_called_once()
+
+    def test_get_versions(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_versions = MagicMock()
+        mock_versions.find.return_value.sort.return_value = [{"version": "1.0.0"}]
+        db.versions = mock_versions
+
+        versions = db.get_versions("proj_id")
+        assert len(versions) == 1
+
+    def test_get_version(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_versions = MagicMock()
+        db.versions = mock_versions
+
+        oid = ObjectId()
+        expected = {"_id": oid, "version": "2.0.0", "project_id": "proj_id"}
+        mock_versions.find_one.return_value = expected
+
+        result = db.get_version(str(oid))
+        assert result == expected
+        mock_versions.find_one.assert_called_once()
+
+    def test_get_version_invalid_id(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_versions = MagicMock()
+        db.versions = mock_versions
+
+        result = db.get_version("invalid-id")
+        assert result is None
+
+    def test_delete_versions(self, mock_mongo_client):
+        db, mock_client, mock_collection = mock_mongo_client
+        mock_versions = MagicMock()
+        mock_versions.delete_many.return_value.deleted_count = 3
+        db.versions = mock_versions
+
+        count = db.delete_versions("proj_id")
+        assert count == 3
+        mock_versions.delete_many.assert_called_once_with({"project_id": "proj_id"})
 
     def test_close(self, mock_mongo_client):
         db, client, _ = mock_mongo_client
