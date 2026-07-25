@@ -136,11 +136,18 @@ def main(ctx):
         try:
             from pyxos.gui.main import gui_launch
 
-            gui_launch()
+            _ = gui_launch
         except ImportError:
             rprint("[red]✗ Optional dependency 'PySide6' is not installed.[/red]")
             rprint("[yellow]Install it with:[/yellow]", end=" ")
             click.echo('pip install "pyxos[gui]"')
+            sys.exit(1)
+
+        import subprocess as _sp2
+
+        _sp2.run(
+            [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"]
+        )
         sys.exit(0)
     rprint(LOGO)
 
