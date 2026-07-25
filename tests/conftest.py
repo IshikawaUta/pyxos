@@ -1,8 +1,6 @@
-import os
 import json
 import shutil
 import tempfile
-import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
