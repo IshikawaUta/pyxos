@@ -152,15 +152,25 @@ Pyxos/
 ├── pyxos/
 │   ├── __init__.py
 │   ├── cli.py          # CLI commands (Click + Rich)
-│   ├── config.py       # Konfigurasi, archive .zip, filter pattern
+│   ├── config.py       # Konfigurasi, archive .zip, filter pola
 │   ├── database.py     # MongoDB Atlas CRUD
-│   └── storage.py      # Cloudinary + B2 upload/download/delete
+│   ├── storage.py      # Cloudinary + B2 upload/download/delete/resume
+│   ├── cache.py        # Cache lokal untuk daftar offline
+│   ├── crypto.py       # AES-256-CBC encrypt/decrypt (streaming)
+│   ├── parallel.py     # Parallel upload/download dengan chunking
+│   └── web/
+│       ├── __init__.py
+│       └── app.py      # Dashboard web (opsional)
 └── tests/
     ├── conftest.py
+    ├── test_cache.py
     ├── test_cli.py
     ├── test_config.py
+    ├── test_crypto.py
     ├── test_database.py
-    └── test_storage.py
+    ├── test_parallel.py
+    ├── test_storage.py
+    └── test_web.py
 ```
 
 ### Alur Data
@@ -196,6 +206,7 @@ pyxos push [PATH] [OPTIONS]
 | `--no-confirm-size` | | Skip konfirmasi untuk project >50 MB |
 | `--exclude` | `-e` | Pattern tambahan untuk dikecualikan (bisa diulang) |
 | `--include` | `-i` | Paksa sertakan file meski kena exclude (bisa diulang) |
+| `--encrypt` | | Enkripsi arsip sebelum upload (akan diminta password) |
 
 > **Catatan:** Cloudinary free tier membatasi upload ke **10 MB**. Project >10 MB akan otomatis ditolak dengan pesan jelas. Gunakan B2 storage untuk project besar.
 
@@ -230,6 +241,7 @@ pyxos pull [QUERY] [OPTIONS]
 |---|---|---|
 | `--output` | `-o` | Direktori output (default: `.`) |
 | `--force` | `-f` | Timpa direktori jika sudah ada |
+| `--decrypt` | | Dekripsi arsip setelah download (akan diminta password) |
 
 **Contoh:**
 
@@ -260,6 +272,8 @@ pyxos list [OPTIONS]
 | `--page` | `-p` | Nomor halaman (default: 1) |
 | `--per-page` | | Hasil per halaman (default: 20) |
 | `--json` | | Output dalam format JSON |
+| `--no-cache` | | Skip cache, paksa data fresh dari database |
+| `--offline` | | Gunakan cache saja, tanpa koneksi database |
 
 **Contoh:**
 
@@ -366,6 +380,152 @@ pyxos check
 
 Verifikasi koneksi MongoDB Atlas dan storage backend (Cloudinary/B2) dengan spinner loading.
 
+### `pyxos diff` — Bandingkan lokal vs remote
+
+```bash
+pyxos diff [QUERY] [OPTIONS]
+```
+
+Menampilkan perbedaan file antara direktori project lokal dan versi remote.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--path` | `-p` | Override path project lokal |
+
+> **Enkripsi:** Gunakan `--encrypt` pada `push` untuk enkripsi arsip sebelum upload, dan `--decrypt` pada `pull` untuk dekripsi setelah download. Keduanya meminta password secara interaktif.
+
+### `pyxos share` — Buat link share
+
+```bash
+pyxos share [QUERY] [OPTIONS]
+```
+
+Membuat link download sementara untuk project.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--expires` | `-e` | Durasi kedaluwarsa dalam detik (default: 3600) |
+| `--clipboard` | `-c` | Salin URL ke clipboard |
+
+### `pyxos stats` — Statistik project
+
+```bash
+pyxos stats [OPTIONS]
+```
+
+Menampilkan statistik agregat: total project, total ukuran, backend storage, distribusi tag.
+
+### `pyxos rollback` — Kembali ke versi sebelumnya
+
+```bash
+pyxos rollback QUERY [OPTIONS]
+```
+
+Rollback ke versi project sebelumnya yang tersimpan di version history.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--to` | | Rollback ke versi spesifik |
+
+### `pyxos clone` — Clone project
+
+```bash
+pyxos clone QUERY [OPTIONS]
+```
+
+Clone/download project remote ke direktori lokal baru.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--output` | `-o` | Direktori output |
+
+### `pyxos tags` — Kelola tag project
+
+```bash
+pyxos tags [QUERY] [OPTIONS]
+```
+
+Tambah, hapus, atau tampilkan tag project.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--add` | `-a` | Tambah tag (dipisah koma) |
+| `--remove` | `-r` | Hapus tag (dipisah koma) |
+| `--list` | `-l` | Tampilkan semua tag |
+
+### `pyxos config` — Kelola konfigurasi
+
+```bash
+pyxos config [COMMAND]
+```
+
+Sub-perintah:
+- `pyxos config show` — Tampilkan konfigurasi (kredensial disensor)
+- `pyxos config reset` — Reset konfigurasi
+
+### `pyxos export` — Ekspor database
+
+```bash
+pyxos export [QUERY] [OPTIONS]
+```
+
+Ekspor metadata project ke JSON.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--all` | | Ekspor semua project |
+| `--output` | `-o` | Path file output |
+
+### `pyxos import` — Impor database
+
+```bash
+pyxos import FILE [OPTIONS]
+```
+
+Impor project dari file JSON hasil ekspor.
+
+### `pyxos watch` — Pantau dan auto-push
+
+```bash
+pyxos watch [PATH] [OPTIONS]
+```
+
+Pantau direktori untuk perubahan dan push otomatis. Gunakan `watchfiles` jika terinstal, fallback ke polling.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--interval` | `-i` | Interval debounce dalam detik (default: 3.0) |
+| `--name` | `-n` | Nama project |
+
+### `pyxos web` — Dashboard web
+
+```bash
+pyxos web [OPTIONS]
+```
+
+Jalankan dashboard web lokal untuk browsing dan mengelola project.
+
+| Flag | Singkat | Deskripsi |
+|---|---|---|
+| `--host` | | Host listen (default: 127.0.0.1) |
+| `--port` | `-p` | Port listen (default: 8080) |
+
+### `pyxos completion` — Shell completion
+
+```bash
+pyxos completion [SHELL]
+```
+
+Generate script shell completion. Mendukung `bash`, `zsh`, `fish`.
+
+```bash
+# Zsh
+eval "$(pyxos completion zsh)"
+
+# Bash
+eval "$(pyxos completion bash)"
+```
+
 ---
 
 ## File Exclusion
@@ -429,6 +589,8 @@ Koleksi: `pyxos.projects`
 | `local_path` | String | Path lokal saat push |
 | `file_size` | Int | Ukuran arsip dalam bytes |
 | `file_count` | Int | Jumlah file dalam arsip |
+| `encrypted` | Bool | Apakah arsip terenkripsi |
+| `exclude_patterns` | Array[String] | Pola filter yang digunakan saat push |
 | `created_at` | DateTime | Waktu dibuat (UTC) |
 | `updated_at` | DateTime | Waktu diupdate (UTC) |
 
@@ -445,26 +607,76 @@ Koleksi: `pyxos.projects`
 | [pymongo](https://pymongo.readthedocs.io) | >=4.6 | MongoDB driver (+SRV support) |
 | [cloudinary](https://cloudinary.com/documentation/python_integration) | >=1.36 | Cloudinary SDK |
 | [b2sdk](https://github.com/Backblaze/b2-sdk-python) | >=2.0 | Backblaze B2 SDK |
+| [cryptography](https://cryptography.io) | >=41 | AES-256-CBC enkripsi/dekripsi |
+
+### Dependensi Opsional
+
+| Extra | Package | Kegunaan |
+|---|---|---|
+| `[web]` | [fenrir-framework](https://github.com/fenrir-py) | Dashboard web (`pyxos web`) |
+| `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | File watching efisien (`pyxos watch`) |
+
+```bash
+pip install "pyxos[web,watch]"
+```
 
 ---
 
-## Error Handling
+## Penanganan Error
 
 Pyxos menggunakan `sys.excepthook` untuk menangkap exception yang tidak tertangani dan menampilkan pesan ramah tanpa traceback:
 
 - `KeyboardInterrupt` (Ctrl+C) → "Cancelled."
 - `click.Abort` → silent exit
 - `click.UsageError` → pesan error merah
+- HTTP errors (4xx/5xx) → pesan deskriptif dengan kode status
+- Error storage → pesan error spesifik backend
+- Error database → pesan error koneksi dan query
 - Exception lainnya → pesan error merah dengan detail
 
 ---
 
-## Progress Indicators
+## Indikator Progress
 
-- **Upload**: spinner "Uploading to Cloudinary/B2..."
-- **Download**: progress bar dengan chunked download (64 KB chunks)
+- **Upload**: progress bar dengan kecepatan transfer (B2: upload parallel chunked untuk file >50 MB)
+- **Download**: progress bar dengan dukungan resume chunked (Cloudinary dan B2)
+- **Enkripsi/Dekripsi**: pemrosesan streaming — hemat memori untuk ukuran file berapa pun
 - **List/Check**: spinner loading saat query database
-- **Size warning**: prompt konfirmasi untuk project >50 MB
+- **Peringatan ukuran**: konfirmasi untuk project >50 MB
+- **Watch mode**: tampilan live dengan auto-push berbasis debounce
+
+---
+
+## Cache
+
+Pyxos menyimpan cache lokal dari daftar project untuk penggunaan offline:
+
+```bash
+# Data fresh + hapus cache lama
+pyxos list --no-cache
+
+# Cache saja (mode offline)
+pyxos list --offline
+
+# Info dengan data fresh
+pyxos info MyApp --no-cache
+```
+
+Cache disimpan di `~/.pyxos/cache.json` dengan jendela kesegaran default. Flag `--no-cache` akan melewati pemuatan cache DAN menghapus file cache yang ada.
+
+---
+
+## Dashboard Web
+
+```bash
+# Install dengan dependensi web opsional
+pip install "pyxos[web]"
+
+# Jalankan dashboard
+pyxos web --host 0.0.0.0 --port 8080
+```
+
+Jelajahi project, lihat statistik, dan kelola metadata dari antarmuka web. Dibangun dengan Fenrir.
 
 ---
 
