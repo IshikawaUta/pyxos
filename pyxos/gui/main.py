@@ -1203,12 +1203,10 @@ def gui_launch():
             table.resizeColumnsToContents()
 
 
-    # Wayland needs explicit XCB override on Linux
-    if os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("QT_QPA_PLATFORM"):
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
-
-    # Prevent Qt from choking on pipx binary argv
-    sys.argv = [sys.argv[0]]
+    # Wayland needs explicit platform override on Linux
+    if os.environ.get("WAYLAND_DISPLAY"):
+        if not os.environ.get("QT_QPA_PLATFORM"):
+            os.environ["QT_QPA_PLATFORM"] = "wayland"
 
     sys.stderr.write("[GUI] Creating QApplication...\n")
     sys.stderr.flush()
