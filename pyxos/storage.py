@@ -1,3 +1,4 @@
+import os
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -7,11 +8,13 @@ import cloudinary.api
 from cloudinary import config as cloudinary_config
 from cloudinary.utils import cloudinary_url
 from rich.console import Console
-from rich.progress import Progress, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn
+from rich.progress import Progress, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn, SpinnerColumn
 
 console = Console()
 
 CLOUDINARY_MAX_SIZE = 10 * 1024 * 1024
+B2_LARGE_FILE_THRESHOLD = 200 * 1024 * 1024
+B2_CHUNK_SIZE = 100 * 1024 * 1024
 
 _state = {}
 _b2_bucket = None
@@ -68,7 +71,12 @@ def _cloudinary_upload(archive_path, project_name):
             "Upgrade Cloudinary plan or switch to B2 (pyxos init)."
         )
 
-    with console.status("[cyan]Uploading to Cloudinary...[/cyan]"):
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[cyan]Uploading to Cloudinary...[/cyan]"),
+        BarColumn(),
+    ) as progress:
+        task = progress.add_task("upload", total=None)
         result = cloudinary.uploader.upload(
             str(archive_path),
             resource_type="raw",
@@ -77,6 +85,7 @@ def _cloudinary_upload(archive_path, project_name):
             unique_filename=False,
             overwrite=True,
         )
+        progress.update(task, completed=1, total=1)
 
     public_id = result["public_id"]
     url, _ = cloudinary_url(public_id, resource_type="raw")
@@ -87,9 +96,82 @@ def _b2_upload(archive_path, project_name):
     from b2sdk.v2 import UploadSourceLocalFile
 
     b2_file_name = f"pyxos/{project_name}.zip"
+    file_size = Path(archive_path).stat().st_size
 
-    with console.status("[cyan]Uploading to Backblaze B2...[/cyan]"):
-        _b2_bucket.upload(UploadSourceLocalFile(str(archive_path)), b2_file_name)
+    if file_size > B2_LARGE_FILE_THRESHOLD:
+        return _b2_upload_large(archive_path, b2_file_name, file_size)
+
+    from b2sdk.v2 import AbstractProgressListener
+
+    class UploadProgressListener(AbstractProgressListener):
+        def __init__(self, progress, task):
+            self.progress = progress
+            self.task = task
+
+        def set_total_bytes(self, total_byte_count):
+            self.progress.update(self.task, total=total_byte_count)
+
+        def bytes_completed(self, byte_count):
+            self.progress.update(self.task, completed=byte_count)
+
+        def close(self):
+            pass
+
+    with Progress(
+        TextColumn("[cyan]Uploading to Backblaze B2...[/cyan]"),
+        BarColumn(),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        "•",
+        TransferSpeedColumn(),
+    ) as progress:
+        task = progress.add_task("upload", total=file_size)
+        listener = UploadProgressListener(progress, task)
+        _b2_bucket.upload(
+            UploadSourceLocalFile(str(archive_path)),
+            b2_file_name,
+            progress_listener=listener,
+        )
+
+    url = _b2_bucket.get_download_url(b2_file_name)
+    return url, b2_file_name
+
+
+def _b2_upload_large(archive_path, b2_file_name, file_size):
+    from b2sdk.v2 import UploadSourceLocalFileRange
+
+    total_parts = (file_size + B2_CHUNK_SIZE - 1) // B2_CHUNK_SIZE
+
+    large_file = _b2_bucket.start_large_file(b2_file_name, content_type="application/zip")
+    part_sha1s = []
+    completed = 0
+
+    with Progress(
+        TextColumn("[cyan]Uploading large file to Backblaze B2...[/cyan]"),
+        BarColumn(),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        "•",
+        TransferSpeedColumn(),
+        TextColumn("[dim]{task.fields[part_info]}[/dim]"),
+    ) as progress:
+        task = progress.add_task("upload", total=file_size, part_info="")
+
+        for part_number in range(1, total_parts + 1):
+            offset = (part_number - 1) * B2_CHUNK_SIZE
+            length = min(B2_CHUNK_SIZE, file_size - offset)
+
+            progress.update(task, part_info=f"Part {part_number}/{total_parts}")
+
+            result = _b2_bucket.upload_part(
+                large_file.file_id,
+                part_number,
+                UploadSourceLocalFileRange(str(archive_path), offset=offset, length=length),
+            )
+
+            part_sha1s.append(result.content_sha1)
+            completed += length
+            progress.update(task, completed=completed)
+
+    _b2_bucket.finish_large_file(large_file.file_id, part_sha1s)
 
     url = _b2_bucket.get_download_url(b2_file_name)
     return url, b2_file_name
@@ -135,27 +217,26 @@ def _cloudinary_download(public_id, dest_dir):
 
 
 def _b2_download(public_id, dest_dir):
+    auth_token = _b2_bucket.get_download_authorization(public_id, 600)
+    base_url = _b2_bucket.get_download_url(public_id)
+    url = f"{base_url}?Authorization={auth_token}"
+    return _download_url(url, public_id, dest_dir, resume=True)
+
+
+def _download_url(url, public_id, dest_dir, resume=True):
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     archive_filename = public_id.replace("/", "_")
-    if not archive_filename.endswith(".zip"):
-        archive_filename += ".zip"
-    archive_path = dest_dir / archive_filename
+    archive_path = dest_dir / (archive_filename + ".zip")
+    part_path = dest_dir / (archive_filename + ".zip.part")
 
-    with console.status("[cyan]Downloading from Backblaze B2...[/cyan]"):
-        downloaded = _b2_bucket.download_file_by_name(public_id)
-        downloaded.save_to(archive_path)
+    mode = "ab" if resume and part_path.exists() else "wb"
+    downloaded = part_path.stat().st_size if resume and part_path.exists() else 0
 
-    return archive_path
-
-
-def _download_url(url, public_id, dest_dir):
-    dest_dir = Path(dest_dir)
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    archive_filename = public_id.replace("/", "_") + ".zip"
-    archive_path = dest_dir / archive_filename
+    opener = urllib.request.build_opener()
+    if downloaded > 0 and resume:
+        opener.addheaders = [("Range", f"bytes={downloaded}-")]
 
     with Progress(
         TextColumn("[cyan]Downloading...[/cyan]"),
@@ -167,16 +248,35 @@ def _download_url(url, public_id, dest_dir):
         TransferSpeedColumn(),
     ) as progress:
         task = progress.add_task("download", total=None)
+        if downloaded > 0:
+            progress.update(task, completed=downloaded)
 
         try:
-            response = urllib.request.urlopen(url, timeout=300)
+            response = opener.open(url, timeout=300)
+            status = response.status
+            if status >= 400:
+                response.close()
+                raise RuntimeError(f"Download failed: HTTP {status}")
+            if downloaded > 0 and status == 206:
+                content_range = response.headers.get("Content-Range", "")
+                if "bytes" in content_range:
+                    total_from_range = int(content_range.split("/")[-1])
+                    progress.update(task, total=total_from_range)
+            elif downloaded > 0 and status == 200:
+                downloaded = 0
+                mode = "wb"
+                os.remove(part_path)
+
             content_length = response.headers.get("Content-Length")
             if content_length:
-                progress.update(task, total=int(content_length))
+                cl = int(content_length)
+                if status == 200:
+                    progress.update(task, total=cl)
+                elif status == 206:
+                    progress.update(task, total=downloaded + cl)
 
             chunk_size = 1024 * 64
-            downloaded = 0
-            with open(archive_path, "wb") as f:
+            with open(part_path, mode) as f:
                 while True:
                     chunk = response.read(chunk_size)
                     if not chunk:
@@ -186,10 +286,11 @@ def _download_url(url, public_id, dest_dir):
                     progress.update(task, completed=downloaded)
 
         except (IOError, urllib.error.URLError, ValueError) as e:
-            if archive_path.exists():
-                archive_path.unlink()
+            if part_path.exists() and mode == "wb":
+                part_path.unlink()
             raise RuntimeError(f"Download failed: {e}") from e
 
+    part_path.rename(archive_path)
     return archive_path
 
 
@@ -226,5 +327,32 @@ def _fmt(size):
     return f"{size / 1024:.1f} KB"
 
 
-def ping_cloudinary():
-    return _cloudinary_ping()
+def generate_share_link(public_id, expiration_seconds=3600):
+    if _storage_type() == "b2":
+        return _b2_share_link(public_id, expiration_seconds)
+    return _cloudinary_share_link(public_id, expiration_seconds)
+
+
+def _cloudinary_share_link(public_id, expiration_seconds):
+    from datetime import datetime, timedelta, timezone
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expiration_seconds)
+    url, _ = cloudinary_url(
+        public_id,
+        resource_type="raw",
+        sign_url=True,
+        expires_at=expires_at,
+    )
+    return url, expires_at
+
+
+def _b2_share_link(public_id, expiration_seconds):
+    from datetime import datetime, timedelta, timezone
+    auth = _b2_bucket.get_download_authorization(
+        public_id,
+        valid_duration_in_seconds=expiration_seconds,
+    )
+    url = _b2_bucket.get_download_url(public_id)
+    signed_url = f"{url}?Authorization={auth}"
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expiration_seconds)
+    return signed_url, expires_at
+
