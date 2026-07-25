@@ -1397,7 +1397,9 @@ def gui_launch():
     win.show()
     sys.stderr.write("[GUI] Show OK\n")
     sys.stderr.flush()
-    win._navigate("dashboard")
-    sys.stderr.write("[GUI] Navigate OK, starting event loop...\n")
+    from PySide6.QtCore import QTimer
+
+    QTimer.singleShot(100, lambda: win._navigate("dashboard"))
+    sys.stderr.write("[GUI] Starting event loop...\n")
     sys.stderr.flush()
     app.exec()
