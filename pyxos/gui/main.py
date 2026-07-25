@@ -1203,10 +1203,7 @@ def gui_launch():
             table.resizeColumnsToContents()
 
 
-    # Wayland needs explicit platform override on Linux
-    if os.environ.get("WAYLAND_DISPLAY"):
-        if not os.environ.get("QT_QPA_PLATFORM"):
-            os.environ["QT_QPA_PLATFORM"] = "wayland"
+    # WSLg auto-detects the right platform — don't override
 
     sys.stderr.write("[GUI] Creating QApplication...\n")
     sys.stderr.flush()
