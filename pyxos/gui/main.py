@@ -1282,6 +1282,7 @@ def gui_launch():
             padding: 8px;
             color: #ebebf5;
             font-size: 13px;
+            caret-color: #a78bfa;
         }
         QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
             border-color: #6c63ff;
