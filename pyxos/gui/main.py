@@ -251,7 +251,7 @@ def gui_launch():
             self.setMinimumSize(900, 600)
             self._pages = {}
             self._db = None
-            self._init_db()
+            self._worker = None
             self._build_ui()
 
         def __del__(self):
@@ -261,7 +261,9 @@ def gui_launch():
             except Exception:
                 pass
 
-        def _init_db(self):
+        def _get_db(self):
+            if self._db is not None:
+                return self._db
             cfg = load_config()
             uri = cfg.get("mongodb_uri", "")
             if uri:
@@ -269,8 +271,7 @@ def gui_launch():
                     self._db = Database(uri)
                 except Exception:
                     self._db = None
-            else:
-                self._db = None
+            return self._db
 
         def _build_ui(self):
             main_layout = QHBoxLayout(self)
@@ -390,7 +391,7 @@ def gui_launch():
 
         def _load_dashboard(self):
             def _fetch():
-                if not self._db:
+                if not self._get_db():
                     return [], {
                         "total_projects": 0,
                         "total_size": 0,
@@ -503,7 +504,7 @@ def gui_launch():
             search = self.project_search.text().strip()
 
             def _fetch():
-                if not self._db:
+                if not self._get_db():
                     return [], 0, 1
                 try:
                     projects, total = self._db.list_projects(
@@ -546,7 +547,7 @@ def gui_launch():
 
         def _show_project_detail(self, name):
             def _fetch():
-                if not self._db:
+                if not self._get_db():
                     return None
                 try:
                     proj = self._db.get_project_by_name(name)
@@ -912,7 +913,7 @@ def gui_launch():
             self.pull_progress.setRange(0, 0)
 
             def _run():
-                if not self._db:
+                if not self._get_db():
                     return {"error": "Database not connected."}
                 proj = self._db.get_project_by_name(query)
                 if not proj:
@@ -1031,7 +1032,7 @@ def gui_launch():
 
         def _load_stats(self):
             def _fetch():
-                if not self._db:
+                if not self._get_db():
                     return {}
                 try:
                     projects, total = self._db.list_projects(
@@ -1282,7 +1283,7 @@ def gui_launch():
             padding: 8px;
             color: #ebebf5;
             font-size: 13px;
-            caret-color: #a78bfa;
+            selection-background-color: #6c63ff;
         }
         QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
             border-color: #6c63ff;
