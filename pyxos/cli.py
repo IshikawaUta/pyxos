@@ -1827,21 +1827,14 @@ def gui_app():
         click.echo('pip install "pyxos[gui]"')
         raise SystemExit(1)
 
-    import subprocess as _sp
+    # Launch GUI directly after flushing Rich output
+    import signal as _sig
 
-    proc = _sp.run(
-        [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or "").strip()
-        if err:
-            rprint(f"[red]GUI error (code {proc.returncode}):[/red]")
-            rprint(f"[dim]{err}[/dim]")
-        else:
-            rprint(f"[red]GUI exited with code {proc.returncode}[/red]")
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    _sig.signal(_sig.SIGABRT, lambda *_: sys.exit(0))
+    gui_launch()
 
 
 # ── completion ───────────────────────────────────────────────────────────────
