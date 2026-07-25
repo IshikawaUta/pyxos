@@ -1,8 +1,6 @@
 import json
-import os
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
 
 from pyxos import config
 
@@ -182,3 +180,62 @@ class TestArchiveFunctions:
         names = [f[0] for f in files]
         assert "mylink" not in names
         assert "main.py" in names
+
+
+class TestGlobPatternMatching:
+    def test_simple_wildcard(self):
+        assert config._match_pattern("file.pyc", "*.pyc") is True
+        assert config._match_pattern("file.py", "*.pyc") is False
+
+    def test_path_specific(self):
+        assert config._match_pattern("src/file.pyc", "src/*.pyc") is True
+        assert config._match_pattern("other/file.pyc", "src/*.pyc") is False
+        assert config._match_pattern("src/subdir/file.pyc", "src/*.pyc") is False
+
+    def test_double_star(self):
+        assert config._match_pattern("any/file.pyc", "**/*.pyc") is True
+        assert config._match_pattern("a/b/c/file.pyc", "**/*.pyc") is True
+        assert config._match_pattern("file.pyc", "**/*.pyc") is True
+
+    def test_double_star_prefix(self):
+        assert config._match_pattern("src/sub/nested", "src/**/nested") is True
+        assert config._match_pattern("src/nested", "src/**/nested") is True
+        assert config._match_pattern("other/nested", "src/**/nested") is False
+
+    def test_name_only(self):
+        assert config._match_pattern("path/to/__pycache__/file.pyc", "__pycache__") is True
+        assert config._match_pattern("random.txt", "__pycache__") is False
+
+    def test_empty_pattern(self):
+        assert config._match_pattern("anything", "") is False
+
+    def test_should_exclude_simple(self):
+        assert config.should_exclude("file.pyc", ["*.pyc"]) is True
+        assert config.should_exclude("file.txt", ["*.pyc"]) is False
+
+    def test_should_exclude_include_override(self):
+        assert config.should_exclude(".git/HEAD", [".git"], includes=[".git"]) is False
+        assert config.should_exclude(".git/HEAD", [".git"], includes=["secret*"]) is True
+
+    def test_path_parts_complex(self):
+        assert config._path_parts_excluded("src/__pycache__/file.pyc", ["*.pyc", "__pycache__"]) is True
+        assert config._path_parts_excluded("src/other/file.txt", ["*.pyc"]) is False
+        assert config._path_parts_excluded("src/file.pyc", ["src/*.pyc"]) is True
+        assert config._path_parts_excluded("deep/nested/file.pyc", ["**/*.pyc"]) is True
+
+    def test_question_mark(self):
+        assert config._match_pattern("file.pyc", "file.?yc") is True
+        assert config._match_pattern("file.py", "file.?yc") is False
+        assert config._match_pattern("src/file.pyc", "src/file.?yc") is True
+        assert config._match_pattern("notsrc/file.pyc", "src/file.?yc") is False
+
+    def test_character_class(self):
+        assert config._match_pattern("file.pyc", "file.[pP]yc") is True
+        assert config._match_pattern("file.Pyc", "file.[pP]yc") is True
+        assert config._match_pattern("file.Ryc", "file.[pP]yc") is False
+        assert config._match_pattern("a/file.pyc", "**/file.[pP]yc") is True
+
+    def test_special_regex_chars(self):
+        assert config._match_pattern("test+file.txt", "test+file.txt") is True
+        assert config._match_pattern("test.file.txt", "test.file.txt") is True
+        assert config._match_pattern("src/test+file.txt", "src/test+file.*") is True
