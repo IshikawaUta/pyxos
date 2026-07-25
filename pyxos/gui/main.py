@@ -253,7 +253,13 @@ def gui_launch():
             self._db = None
             self._init_db()
             self._build_ui()
-            self._navigate("dashboard")
+
+        def __del__(self):
+            try:
+                if hasattr(self, '_db') and self._db:
+                    self._db.close()
+            except Exception:
+                pass
 
         def _init_db(self):
             cfg = load_config()
@@ -1351,4 +1357,5 @@ def gui_launch():
 
     win = MainWindow()
     win.show()
+    win._navigate("dashboard")
     app.exec()
