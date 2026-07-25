@@ -37,6 +37,12 @@ clipboard = [
 gui = [
     "pyside6>=6.5",
 ]
+all = [
+    "fenrir-framework>=0.1",
+    "watchfiles>=0.20",
+    "pyperclip>=1.8",
+    "pyside6>=6.5",
+]
 
 [project.scripts]
 pyxos = "pyxos.cli:main"
