@@ -1818,14 +1818,15 @@ def gui_app():
     """Launch the desktop GUI application."""
     try:
         from pyxos.gui.main import gui_launch
+        _ = gui_launch  # referenced via subprocess
     except ImportError:
         rprint("[red]✗ Optional dependency 'PySide6' is not installed.[/red]")
         rprint("[yellow]Install it with:[/yellow]", end=" ")
         click.echo('pip install "pyxos[gui]"')
         raise SystemExit(1)
 
-    sys.excepthook = sys.__excepthook__
-    gui_launch()
+    # Launch GUI in isolated subprocess to avoid thread conflicts
+    subprocess.run([sys.executable, "-I", "-c", "from pyxos.gui.main import gui_launch; gui_launch()"])
 
 
 # ── completion ───────────────────────────────────────────────────────────────

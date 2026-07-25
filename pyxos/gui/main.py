@@ -1201,11 +1201,15 @@ def gui_launch():
                 )
             table.resizeColumnsToContents()
 
-    # Force XCB on Wayland to avoid crashes
+    # Force XCB on Wayland; fall back to offscreen if xcb fails
     if os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("QT_QPA_PLATFORM"):
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
-    app = QApplication([])
+    try:
+        app = QApplication([])
+    except Exception:
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
+        app = QApplication([])
     app.setApplicationName("Pyxos")
     app.setStyle("Fusion")
 
