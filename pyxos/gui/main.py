@@ -1201,9 +1201,6 @@ def gui_launch():
                 )
             table.resizeColumnsToContents()
 
-    # Force XCB on Wayland; fall back to offscreen if xcb fails
-    if os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("QT_QPA_PLATFORM"):
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
 
     try:
         app = QApplication([])
