@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import zipfile
 import fnmatch
@@ -99,22 +100,70 @@ def build_exclude_patterns(project_path, extra_excludes=None, extra_includes=Non
     return patterns, includes
 
 
+def _glob_to_re(pattern):
+    """Convert gitignore glob pattern to compiled regex. Supports **."""
+    parts = pattern.split("**")
+    regex_parts = []
+    for i, p in enumerate(parts):
+        if p:
+            regex_parts.append(_glob_part_to_re(p.lstrip("/")))
+        if i < len(parts) - 1:
+            regex_parts.append(r"(?:.*/)?")
+    expr = "".join(regex_parts) if regex_parts else ".*"
+    return re.compile("^" + expr + "$")
+
+
+def _glob_part_to_re(part):
+    """Convert a glob part (no **) to regex fragment."""
+    result = []
+    i = 0
+    while i < len(part):
+        c = part[i]
+        if c == "*":
+            result.append("[^/]*")
+        elif c == "?":
+            result.append("[^/]")
+        elif c == "[":
+            j = part.index("]", i + 1) if "]" in part[i + 1:] else i
+            result.append(re.escape(part[i:j + 1]).replace(r"\[", "[").replace(r"\]", "]"))
+            i = j
+        else:
+            result.append(re.escape(c))
+        i += 1
+    return "".join(result)
+
+
+def _match_pattern(path, pattern):
+    if not pattern:
+        return False
+    if "/" not in pattern and "**" not in pattern:
+        for part in path.split("/"):
+            if part and fnmatch.fnmatch(part, pattern):
+                return True
+        return fnmatch.fnmatch(Path(path).name, pattern)
+    return bool(_glob_to_re(pattern).search(path))
+
+
 def should_exclude(path_name, patterns, includes=None):
     if includes:
         for inc in includes:
-            if fnmatch.fnmatch(path_name, inc):
+            if _match_pattern(path_name, inc):
                 return False
     for pat in patterns:
-        if fnmatch.fnmatch(path_name, pat):
+        if _match_pattern(path_name, pat):
             return True
     return False
 
 
 def _path_parts_excluded(rel_path, patterns, includes=None):
     parts = rel_path.split(os.sep)
+    simple_patterns = [p for p in patterns if "/" not in p and "**" not in p]
+    complex_patterns = [p for p in patterns if p not in simple_patterns]
     for part in parts:
-        if part and should_exclude(part, patterns, includes):
+        if part and should_exclude(part, simple_patterns, includes):
             return True
+    if complex_patterns and should_exclude(rel_path, complex_patterns, includes):
+        return True
     return False
 
 
@@ -147,12 +196,12 @@ def count_archive_files(project_path, extra_excludes=None, extra_includes=None):
     return len(files), total_size
 
 
-def make_archive(project_path, output_path, extra_excludes=None, extra_includes=None):
+def make_archive(project_path, output_path, extra_excludes=None, extra_includes=None, compresslevel=6):
     project_path = Path(project_path).resolve()
     archive_path = Path(str(output_path.with_suffix("")) + ".zip")
 
     files_list, _ = get_archive_file_list(project_path, extra_excludes, extra_includes)
-    with zipfile.ZipFile(str(archive_path), "w", zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(str(archive_path), "w", zipfile.ZIP_DEFLATED, compresslevel=compresslevel) as zf:
         for file_rel, _ in files_list:
             full_path = project_path / file_rel
             zf.write(str(full_path), file_rel)
