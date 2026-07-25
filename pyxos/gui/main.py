@@ -1,6 +1,14 @@
 import os
+import atexit
 import webbrowser
 from pathlib import Path
+
+# Debug: flush log to file on WSL
+_fh = open("/tmp/pyxos_gui_debug.log", "w")
+_fh.write("START\n")
+_fh.flush()
+
+atexit.register(lambda: _fh.close())
 
 from pyxos.config import (
     load_config,
@@ -1206,7 +1214,10 @@ def gui_launch():
     os.environ.pop("QT_QPA_PLATFORMTHEME", None)
     os.environ.pop("QT_AUTO_SCREEN_SCALE_FACTOR", None)
 
+    _fh.write("Creating QApplication...\n")
+    _fh.flush()
     app = QApplication([])
+    _fh.write("QApplication OK\n")
     app.setApplicationName("Pyxos")
     app.setStyle("Fusion")
 
@@ -1384,7 +1395,13 @@ def gui_launch():
 
     win = MainWindow()
     win.show()
+    _fh.write(f"win.isVisible={win.isVisible()}, win.isHidden={win.isHidden()}\n")
+    _fh.flush()
     from PySide6.QtCore import QTimer
 
     QTimer.singleShot(100, lambda: win._navigate("dashboard"))
-    app.exec()
+    _fh.write("Starting app.exec()...\n")
+    _fh.flush()
+    ret = app.exec()
+    _fh.write(f"app.exec() returned: {ret}\n")
+    _fh.flush()

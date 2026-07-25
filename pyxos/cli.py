@@ -145,10 +145,15 @@ def main(ctx):
 
         import subprocess as _sp2
 
-        _sp2.run(
+        proc = _sp2.run(
             [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"],
-            stderr=_sp2.DEVNULL,
+            stderr=_sp2.PIPE,
+            text=True,
         )
+        if proc.returncode != 0:
+            err = proc.stderr.strip()
+            if err:
+                rprint(f"[red]GUI error:[/red] {err[:500]}")
         sys.exit(0)
     rprint(LOGO)
 
