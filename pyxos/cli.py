@@ -133,7 +133,15 @@ def main(ctx):
     if "_PYXOS_COMPLETE" in os.environ:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "gui":
-        return
+        try:
+            from pyxos.gui.main import gui_launch
+
+            gui_launch()
+        except ImportError:
+            rprint("[red]✗ Optional dependency 'PySide6' is not installed.[/red]")
+            rprint("[yellow]Install it with:[/yellow]", end=" ")
+            click.echo('pip install "pyxos[gui]"')
+        sys.exit(0)
     rprint(LOGO)
 
 # ── init ──────────────────────────────────────────────────────────────────────
