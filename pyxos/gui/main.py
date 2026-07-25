@@ -6,9 +6,18 @@ from pyxos.config import (
     load_config,
     save_config,
     delete_config,
-    format_size,
 )
 from pyxos.database import Database
+
+
+def _format_size(size):
+    if size is None:
+        return "0 B"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if abs(size) < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} PB"
 
 _STORAGE = None
 
@@ -414,7 +423,7 @@ def gui_launch():
             projects, stats = data
             self.dash_stats.setText(
                 f"Total: {stats.get('total_projects', 0)} projects  |  "
-                f"Size: {format_size(stats.get('total_size', 0))}  |  "
+                f"Size: {_format_size(stats.get('total_size', 0))}  |  "
                 f"Backends: {stats.get('storage_backends', 0)}"
             )
             self._populate_table(self.dash_table, projects)
@@ -561,7 +570,7 @@ def gui_launch():
                 f"<b>ID:</b> {proj.get('_id', '-')}",
                 f"<b>Version:</b> {proj.get('version', '-')}",
                 f"<b>Description:</b> {proj.get('description', '-')}",
-                f"<b>Size:</b> {format_size(proj.get('file_size', 0))}",
+                f"<b>Size:</b> {_format_size(proj.get('file_size', 0))}",
                 f"<b>Files:</b> {proj.get('file_count', '-')}",
                 f"<b>Storage:</b> {proj.get('storage_type', '-')}",
                 f"<b>Encrypted:</b> {proj.get('encrypted', False)}",
@@ -1059,7 +1068,7 @@ def gui_launch():
                 return
             self.stats_label.setText(
                 f"{data['total']} projects  |  "
-                f"{format_size(data['size'])}  |  "
+                f"{_format_size(data['size'])}  |  "
                 f"{data['backends']} backends  |  "
                 f"{data['tags']} unique tags"
             )
@@ -1158,7 +1167,7 @@ def gui_launch():
                     row,
                     2,
                     QTableWidgetItem(
-                        format_size(p.get("file_size", 0))
+                        _format_size(p.get("file_size", 0))
                     ),
                 )
                 storage_col = 3
