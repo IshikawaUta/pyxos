@@ -64,4 +64,4 @@ extend-ignore = [
     "BLE001", "B017", "S110", "SIM102", "SIM117",
     "DTZ001", "DTZ005", "RUF059", "C401",
 ]
-per-file-ignores = { "pyxos/cli.py" = ["E402"] }
+per-file-ignores = { "pyxos/cli.py" = ["E402"], "tests/test_gui.py" = ["E402"] }

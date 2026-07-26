@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 PySide6 = pytest.importorskip("PySide6")
-from PySide6.QtCore import QTimer  # noqa: E402
-from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication, QDialog
 
 
 @pytest.fixture(scope="session")
