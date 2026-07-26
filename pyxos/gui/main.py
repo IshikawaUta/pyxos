@@ -602,34 +602,25 @@ def gui_launch():
                 "storage_public_id"
             ) or proj.get("cloudinary_public_id")
 
-            def _do_delete():
-                if public_id:
-                    try:
-                        from pyxos.storage import (
-                            delete_project as cloud_delete,
-                            init_storage,
-                        )
+            if public_id:
+                try:
+                    from pyxos.storage import (
+                        delete_project as cloud_delete,
+                        init_storage,
+                    )
 
-                        cfg = load_config()
-                        init_storage(cfg)
-                        cloud_delete(public_id)
-                    except Exception:
-                        pass
-                if self._db:
-                    try:
-                        self._db.delete_project(
-                            project_id=proj["_id"]
-                        )
-                        self._db.close()
-                    except Exception:
-                        pass
-                return True
-
-            self.worker = Worker(_do_delete)
-            self.worker.finished.connect(
-                lambda _: self._on_deleted(dlg)
-            )
-            self.worker.start()
+                    cfg = load_config()
+                    init_storage(cfg)
+                    cloud_delete(public_id)
+                except Exception:
+                    pass
+            if self._db:
+                try:
+                    self._db.delete_project(project_id=proj["_id"])
+                    self._db.close()
+                except Exception:
+                    pass
+            self._on_deleted(dlg)
 
         def _on_deleted(self, dlg):
             dlg.accept()
@@ -785,10 +776,14 @@ def gui_launch():
 
                 return {"success": True, "url": url}
 
-            self.worker = Worker(_run)
-            self.worker.finished.connect(self._on_push_done)
-            self.worker.error.connect(self._on_push_error)
-            self.worker.start()
+            import threading
+
+            def _run_thread():
+                result = _run()
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, lambda: self._on_push_done(result))
+
+            threading.Thread(target=_run_thread, daemon=True).start()
 
         def _on_push_done(self, result):
             self.push_progress.setVisible(False)
@@ -950,10 +945,13 @@ def gui_launch():
                     "path": str(extract_dir),
                 }
 
-            self.worker = Worker(_run)
-            self.worker.finished.connect(self._on_pull_done)
-            self.worker.error.connect(self._on_pull_error)
-            self.worker.start()
+            import threading
+
+            def _run_thread():
+                result = _run()
+                QTimer.singleShot(0, lambda r=result: self._on_pull_done(r))
+
+            threading.Thread(target=_run_thread, daemon=True).start()
 
         def _on_pull_done(self, result):
             self.pull_progress.setVisible(False)
