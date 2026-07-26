@@ -299,7 +299,9 @@ def gui_launch():
                 ("projects", "Projects"),
                 ("push", "Push"),
                 ("pull", "Pull"),
+                ("share", "Share"),
                 ("stats", "Statistics"),
+                ("watch", "Watch"),
             ]
             for key, label in nav_items:
                 item = QListWidgetItem(label)
@@ -331,8 +333,10 @@ def gui_launch():
             self._pages["projects"] = self._create_projects()
             self._pages["push"] = self._create_push()
             self._pages["pull"] = self._create_pull()
+            self._pages["share"] = self._create_share()
             self._pages["stats"] = self._create_stats()
             self._pages["config"] = self._create_config_page()
+            self._pages["watch"] = self._create_watch()
 
             for page in self._pages.values():
                 self.stack.addWidget(page)
@@ -353,6 +357,8 @@ def gui_launch():
                 self._load_projects()
             elif key == "stats":
                 self._load_stats()
+            elif key == "share":
+                self._load_share()
 
         def _create_dashboard(self):
             page = QWidget()
@@ -860,6 +866,148 @@ def gui_launch():
             )
             if path:
                 self.pull_output.setText(path)
+        def _create_share(self):
+            page = QWidget()
+            layout = QVBoxLayout(page)
+            layout.setContentsMargins(24, 24, 24, 24)
+            layout.setSpacing(16)
+
+            title = QLabel("Generate Share Link")
+            title.setStyleSheet("font-size: 20px; font-weight: bold;")
+            layout.addWidget(title)
+
+            layout.addWidget(QLabel("Project name or ID:"))
+
+            search_layout = QHBoxLayout()
+            self.share_search = QLineEdit()
+            self.share_search.setPlaceholderText("Search project by name/ID...")
+            search_layout.addWidget(self.share_search)
+
+            layout.addLayout(search_layout)
+
+            layout.addWidget(QLabel("Expiration (hours):"))
+            self.share_expires = QLineEdit()
+            self.share_expires.setText("24")
+            self.share_expires.setMaximumWidth(80)
+            layout.addWidget(self.share_expires)
+
+            copy_layout = QHBoxLayout()
+            self.share_copy = QCheckBox("Copy to clipboard")
+            self.share_copy.setChecked(True)
+            copy_layout.addWidget(self.share_copy)
+            copy_layout.addStretch()
+            layout.addLayout(copy_layout)
+
+            share_btn = QPushButton(" Generate Share Link")
+            share_btn.clicked.connect(self._do_share)
+            layout.addWidget(share_btn)
+
+            self.share_result = QTextEdit()
+            self.share_result.setReadOnly(True)
+            self.share_result.setMaximumHeight(120)
+            self.share_result.setVisible(False)
+            layout.addWidget(self.share_result)
+
+            layout.addStretch()
+            return page
+
+        def _load_share(self):
+            self.share_result.setVisible(False)
+            self.share_search.clear()
+            self.share_expires.setText("24")
+            self.share_copy.setChecked(True)
+
+        def _do_share(self):
+            query = self.share_search.text().strip()
+            if not query:
+                QMessageBox.warning(self, "Error", "Enter a project name or ID.")
+                return
+
+            try:
+                expires = int(self.share_expires.text().strip())
+                if expires < 1:
+                    expires = 24
+            except ValueError:
+                expires = 24
+
+            if not self._get_db():
+                QMessageBox.warning(self, "Error", "Database not connected.")
+                return
+
+            try:
+                proj = self._db.get_project_by_name(query)
+                if not proj:
+                    proj = self._db.get_project_by_id(query)
+                if not proj:
+                    QMessageBox.warning(self, "Error", f"Project '{query}' not found.")
+                    self._db.close()
+                    return
+                self._db.close()
+            except Exception:
+                QMessageBox.warning(self, "Error", "Failed to query database.")
+                return
+
+            public_id = proj.get("storage_public_id") or proj.get("cloudinary_public_id")
+            if not public_id:
+                QMessageBox.warning(self, "Error", "No storage public_id found.")
+                return
+
+            cfg = load_config()
+            try:
+                from pyxos.storage import generate_share_link, init_storage
+
+                init_storage(cfg)
+                url, expires_at = generate_share_link(public_id, expires * 3600)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed: {e}")
+                return
+
+            local_expiry = expires_at.astimezone()
+            expiry_str = local_expiry.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+            self.share_result.setVisible(True)
+            self.share_result.setText(
+                f"Project: {proj['name']}\n"
+                f"URL: {url}\n"
+                f"Expires: {expiry_str} ({expires}h)"
+            )
+
+            if self.share_copy.isChecked():
+                try:
+                    import pyperclip
+
+                    pyperclip.copy(url)
+                    self.share_result.append("\n✓ Link copied to clipboard")
+                except ImportError:
+                    pass
+
+        def _create_watch(self):
+            page = QWidget()
+            layout = QVBoxLayout(page)
+            layout.setContentsMargins(24, 24, 24, 24)
+            layout.setSpacing(16)
+
+            title = QLabel("Watch")
+            title.setStyleSheet("font-size: 20px; font-weight: bold;")
+            layout.addWidget(title)
+
+            info = QTextEdit()
+            info.setReadOnly(True)
+            info.setText(
+                "Watch mode monitors a directory for changes and auto-pushes to storage.\n\n"
+                "This feature is available via the CLI:\n\n"
+                "  pyxos watch /path/to/project\n\n"
+                "Options:\n"
+                "  --name, -n     Project name\n"
+                "  --interval, -i Debounce interval (seconds, default: 2)\n\n"
+                "The watch command uses efficient file-system events (watchfiles) "
+                "or falls back to polling. It runs until interrupted (Ctrl+C)."
+            )
+            info.setStyleSheet("font-size: 13px; line-height: 1.6;")
+            layout.addWidget(info)
+
+            layout.addStretch()
+            return page
 
         def _do_pull(self):
             query = self.pull_search.text().strip()
@@ -1164,7 +1312,9 @@ def gui_launch():
         if not os.environ.get("QT_QPA_PLATFORM"):
             os.environ["QT_QPA_PLATFORM"] = "wayland"
 
-    app = QApplication([])
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
     app.setApplicationName("Pyxos")
     app.setStyle("Fusion")
 
