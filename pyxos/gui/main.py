@@ -390,41 +390,22 @@ def gui_launch():
             return page
 
         def _load_dashboard(self):
-            def _fetch():
-                if not self._get_db():
-                    return [], {
-                        "total_projects": 0,
-                        "total_size": 0,
-                        "storage_backends": 0,
-                    }
-                try:
-                    projects, total = self._db.list_projects(
-                        page=1, per_page=10
-                    )
-                    stats = {
-                        "total_projects": total,
-                        "total_size": sum(
-                            p.get("file_size", 0) for p in projects
-                        ),
-                        "storage_backends": len(
-                            set(
-                                p.get(
-                                    "storage_type", "cloudinary"
-                                )
-                                for p in projects
-                            )
-                            if projects
-                            else []
-                        ),
-                    }
-                    self._db.close()
-                    return projects, stats
-                except Exception:
-                    return [], {}
-
-            self.worker = Worker(_fetch)
-            self.worker.finished.connect(self._set_dashboard)
-            self.worker.start()
+            if not self._get_db():
+                self._set_dashboard(([], {"total_projects": 0, "total_size": 0, "storage_backends": 0}))
+                return
+            try:
+                projects, total = self._db.list_projects(page=1, per_page=10)
+                stats = {
+                    "total_projects": total,
+                    "total_size": sum(p.get("file_size", 0) for p in projects),
+                    "storage_backends": len(
+                        set(p.get("storage_type", "cloudinary") for p in projects) if projects else []
+                    ),
+                }
+                self._db.close()
+                self._set_dashboard((projects, stats))
+            except Exception:
+                pass
 
         def _set_dashboard(self, data):
             projects, stats = data
@@ -501,26 +482,20 @@ def gui_launch():
                 self._load_projects()
 
         def _load_projects(self):
-            search = self.project_search.text().strip()
-
-            def _fetch():
-                if not self._get_db():
-                    return [], 0, 1
-                try:
-                    projects, total = self._db.list_projects(
-                        page=self._project_page,
-                        per_page=20,
-                        search=search if search else None,
-                    )
-                    self._db.close()
-                    tp = max(1, (total + 19) // 20)
-                    return projects, total, tp
-                except Exception:
-                    return [], 0, 1
-
-            self.worker = Worker(_fetch)
-            self.worker.finished.connect(self._set_projects)
-            self.worker.start()
+            search = self.project_search.text().strip() if hasattr(self, 'project_search') else ""
+            if not self._get_db():
+                self._set_projects(([], 0, 1))
+                return
+            try:
+                projects, total = self._db.list_projects(
+                    page=self._project_page, per_page=20,
+                    search=search if search else None,
+                )
+                self._db.close()
+                tp = max(1, (total + 19) // 20)
+                self._set_projects((projects, total, tp))
+            except Exception:
+                pass
 
         def _set_projects(self, data):
             projects, total, tp = data
@@ -546,19 +521,15 @@ def gui_launch():
             self._show_project_detail(name)
 
         def _show_project_detail(self, name):
-            def _fetch():
-                if not self._get_db():
-                    return None
-                try:
-                    proj = self._db.get_project_by_name(name)
-                    self._db.close()
-                    return proj
-                except Exception:
-                    return None
-
-            self.worker = Worker(_fetch)
-            self.worker.finished.connect(self._detail_dialog)
-            self.worker.start()
+            if not self._get_db():
+                QMessageBox.warning(self, "Error", "Database not connected.")
+                return
+            try:
+                proj = self._db.get_project_by_name(name)
+                self._db.close()
+            except Exception:
+                proj = None
+            self._detail_dialog(proj)
 
         def _detail_dialog(self, proj):
             if not proj:
@@ -1031,43 +1002,29 @@ def gui_launch():
             return page
 
         def _load_stats(self):
-            def _fetch():
-                if not self._get_db():
-                    return {}
-                try:
-                    projects, total = self._db.list_projects(
-                        page=1, per_page=1000
-                    )
-                    self._db.close()
-                    storage_types = {}
-                    for p in projects:
-                        st = p.get("storage_type", "cloudinary")
-                        storage_types[st] = (
-                            storage_types.get(st, 0) + 1
-                        )
-                    total_tags = len(
-                        set(
-                            tag
-                            for p in projects
-                            for tag in p.get("tags", [])
-                        )
-                    )
-                    return {
-                        "total": total,
-                        "size": sum(
-                            p.get("file_size", 0)
-                            for p in projects
-                        ),
-                        "backends": len(storage_types),
-                        "tags": total_tags,
-                        "storage_breakdown": storage_types,
-                    }
-                except Exception:
-                    return {}
-
-            self.worker = Worker(_fetch)
-            self.worker.finished.connect(self._set_stats)
-            self.worker.start()
+            if not self._get_db():
+                self._set_stats({})
+                return
+            try:
+                projects, total = self._db.list_projects(page=1, per_page=1000)
+                self._db.close()
+                storage_types = {}
+                for p in projects:
+                    st = p.get("storage_type", "cloudinary")
+                    storage_types[st] = storage_types.get(st, 0) + 1
+                total_tags = len(
+                    set(tag for p in projects for tag in p.get("tags", []))
+                )
+                data = {
+                    "total": total,
+                    "size": sum(p.get("file_size", 0) for p in projects),
+                    "backends": len(storage_types),
+                    "tags": total_tags,
+                    "storage_breakdown": storage_types,
+                }
+                self._set_stats(data)
+            except Exception:
+                pass
 
         def _set_stats(self, data):
             if not data:
