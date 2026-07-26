@@ -436,8 +436,6 @@ class TestPushPullWorkflow:
                 app.quit()
 
         # Navigate to push tab first
-        orig_nav = None
-
         def _nav():
             for w2 in app.topLevelWidgets():
                 nav = w2.findChildren(PySide6.QtWidgets.QListWidget)
