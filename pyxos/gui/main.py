@@ -1399,10 +1399,7 @@ def gui_launch():
     win.show()
     _fh.write(f"win.isVisible={win.isVisible()}, win.isHidden={win.isHidden()}\n")
     _fh.flush()
-    from PySide6.QtCore import QTimer
-
-    QTimer.singleShot(100, lambda: win._navigate("dashboard"))
-    _fh.write("Starting app.exec()...\n")
+    _fh.write("Starting app.exec() (no navigate)...\n")
     _fh.flush()
     ret = app.exec()
     _fh.write(f"app.exec() returned: {ret}\n")
