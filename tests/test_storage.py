@@ -437,4 +437,40 @@ class TestStorageEdgeCases:
     def test_fmt_helper(self):
         """Test _fmt size formatter."""
         assert "12.0 MB" in storage._fmt(12 * 1024 * 1024)
+
+    def test_download_http_error(self, tmp_path, mock_cloudinary):
+        """Test download raises RuntimeError on HTTP error status."""
+        storage._state = {}
+        storage.init_storage({
+            "storage_type": "cloudinary",
+            "cloudinary_cloud_name": "mycloud",
+            "cloudinary_api_key": "key",
+            "cloudinary_api_secret": "secret",
+        })
+        dest = tmp_path / "dl"
+        dest.mkdir()
+
+        with patch("pyxos.storage.cloudinary_url", return_value=("https://fake/x.zip", None)):
+            resp = MagicMock()
+            resp.status = 404
+            resp.headers = {"Content-Length": "100"}
+            resp.read.return_value = b""
+            mock_opener = MagicMock()
+            mock_opener.open.return_value = resp
+            with patch("urllib.request.build_opener", return_value=mock_opener):
+                with pytest.raises(RuntimeError, match="Download failed"):
+                    storage.download_project("pyxos/nope", dest)
+
+    def test_share_link_error(self, mock_cloudinary):
+        """Test _cloudinary_share_link propagates exception."""
+        storage._state = {}
+        storage.init_storage({
+            "storage_type": "cloudinary",
+            "cloudinary_cloud_name": "mycloud",
+            "cloudinary_api_key": "key",
+            "cloudinary_api_secret": "secret",
+        })
+        with patch("pyxos.storage.cloudinary_url", side_effect=Exception("Signed URL failed")):
+            with pytest.raises(Exception, match="Signed URL failed"):
+                storage._cloudinary_share_link("pyxos/test", 3600)
         assert storage._fmt(500) != storage._fmt(500 * 1024 * 1024)

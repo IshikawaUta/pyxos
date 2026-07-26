@@ -182,3 +182,32 @@ class TestParallelUpload:
             assert url == "https://b2.example.com/part0001"
             assert pid == "pyxos/testproj.zip"
             assert mock_bucket.upload.call_count >= 1
+
+    def test_split_file_exact_chunk_size(self, tmp_path):
+        """Test splitting a file that is exactly one chunk."""
+        f = tmp_path / "exact.txt"
+        f.write_bytes(b"e" * (1024 * 1024))
+        dest = tmp_path / "chunks"
+        dest.mkdir()
+        chunks = parallel._split_file(str(f), dest, 1024 * 1024, "proj")
+        assert len(chunks) == 1
+        assert chunks[0].exists()
+
+    def test_split_file_small(self, tmp_path):
+        """Test splitting a file smaller than chunk size."""
+        f = tmp_path / "tiny.txt"
+        f.write_bytes(b"hi")
+        dest = tmp_path / "chunks"
+        dest.mkdir()
+        chunks = parallel._split_file(str(f), dest, 1024 * 1024, "proj")
+        assert len(chunks) == 1
+        assert chunks[0].exists()
+
+    def test_parallel_upload_non_b2_falls_back(self, tmp_path):
+        """Test parallel_upload with non-B2 storage falls back to upload_project."""
+        f = tmp_path / "test.zip"
+        f.write_bytes(b"test data")
+        with patch("pyxos.storage.upload_project", return_value=("https://x.com/x.zip", "pyxos/x")) as mock_up:
+            url, pid = parallel.parallel_upload(str(f), "proj", "cloudinary")
+            assert url == "https://x.com/x.zip"
+            mock_up.assert_called_once()
