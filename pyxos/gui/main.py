@@ -610,10 +610,8 @@ def gui_launch():
 
             if public_id:
                 try:
-                    from pyxos.storage import (
-                        delete_project as cloud_delete,
-                        init_storage,
-                    )
+                    from pyxos.storage import delete_project as cloud_delete
+                    from pyxos.storage import init_storage
 
                     cfg = load_config()
                     init_storage(cfg)
