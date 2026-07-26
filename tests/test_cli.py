@@ -1024,9 +1024,9 @@ class TestShareEdgeCases:
 
     def test_share_interactive_empty(self, runner, mock_dependencies):
         mock_dependencies["db"].list_projects.return_value = ([], 0)
-        r = runner.invoke(main, ["share"], input="\n")
-        # Should fail or exit without error
-        assert True  # No crash, that's the test
+        runner.invoke(main, ["share"], input="\n")
+        # No crash, that's the test
+        assert True
 
     def test_share_with_expires(self, runner, mock_dependencies, sample_project_doc):
         with patch("pyxos.cli.generate_share_link") as mock_share:
@@ -1071,8 +1071,9 @@ class TestInfoEdgeCases:
 
     def test_info_interactive_no_projects(self, runner, mock_dependencies):
         mock_dependencies["db"].list_projects.return_value = ([], 0)
-        r = runner.invoke(main, ["info"], input="\n")
-        assert True  # No crash
+        runner.invoke(main, ["info"], input="\n")
+        # No crash
+        assert True
 
     def test_info_by_id(self, runner, mock_dependencies, sample_project_doc):
         from bson import ObjectId
