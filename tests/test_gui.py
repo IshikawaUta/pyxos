@@ -1,7 +1,6 @@
 """GUI tests for Pyxos (PySide6)."""
 
 import os
-import sys
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
