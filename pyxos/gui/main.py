@@ -1209,9 +1209,12 @@ def gui_launch():
             table.resizeColumnsToContents()
 
 
-    # WSLg auto-detects the right platform — clear conflicting Qt5 vars
+    # WSLg: try wayland first, fall back to xcb
     os.environ.pop("QT_QPA_PLATFORMTHEME", None)
     os.environ.pop("QT_AUTO_SCREEN_SCALE_FACTOR", None)
+    if os.environ.get("WSL_DISTRO_NAME") and os.environ.get("WAYLAND_DISPLAY"):
+        if not os.environ.get("QT_QPA_PLATFORM"):
+            os.environ["QT_QPA_PLATFORM"] = "wayland"
 
     _fh.write("Creating QApplication...\n")
     _fh.flush()
