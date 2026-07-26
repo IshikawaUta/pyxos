@@ -90,7 +90,7 @@ class TestWebRouteHandlers:
         assert resp.status_code in (200, 302, 303)
 
     def test_error_page_no_config(self, monkeypatch):
-        monkeypatch.setattr("pyxos.config.load_config", lambda: {})
+        monkeypatch.setattr("pyxos.config.load_config", dict)
         resp = self._get("/")
         assert resp.status_code == 200
 

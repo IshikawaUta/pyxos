@@ -170,7 +170,7 @@ class TestConfigDialog:
     def test_config_dialog_no_crash(self, monkeypatch, _qapp):
         """When config is empty, ConfigDialog appears without crashing."""
         monkeypatch.setattr(
-            "pyxos.gui.main.load_config", lambda: {}
+            "pyxos.gui.main.load_config", dict
         )
         monkeypatch.setattr("pyxos.gui.main.save_config", lambda c: None)
         monkeypatch.setattr("pyxos.gui.main.delete_config", lambda: None)

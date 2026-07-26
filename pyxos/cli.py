@@ -148,7 +148,7 @@ def main(ctx):
         proc = _sp2.run(
             [sys.executable, "-c", "from pyxos.gui.main import gui_launch; gui_launch()"],
             stderr=_sp2.PIPE,
-            text=True,
+            check=False,
         )
         if proc.returncode != 0:
             err = proc.stderr.strip()

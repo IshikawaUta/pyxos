@@ -3,9 +3,9 @@ import webbrowser
 from pathlib import Path
 
 from pyxos.config import (
+    delete_config,
     load_config,
     save_config,
-    delete_config,
 )
 from pyxos.database import Database
 
@@ -42,33 +42,33 @@ def _run_storage():
 
 def gui_launch():
     try:
-        from PySide6.QtCore import QThread, Signal, Qt
+        from PySide6.QtCore import Qt, QThread, Signal
+        from PySide6.QtGui import QColor, QPalette
         from PySide6.QtWidgets import (
+            QAbstractItemView,
             QApplication,
+            QButtonGroup,
+            QCheckBox,
             QDialog,
+            QFileDialog,
             QFormLayout,
-            QLineEdit,
-            QPushButton,
-            QVBoxLayout,
+            QFrame,
             QHBoxLayout,
             QLabel,
-            QWidget,
+            QLineEdit,
             QListWidget,
             QListWidgetItem,
+            QMessageBox,
+            QProgressBar,
+            QPushButton,
+            QRadioButton,
             QStackedWidget,
-            QFrame,
             QTableWidget,
             QTableWidgetItem,
-            QAbstractItemView,
-            QMessageBox,
-            QFileDialog,
-            QRadioButton,
-            QButtonGroup,
-            QProgressBar,
-            QCheckBox,
             QTextEdit,
+            QVBoxLayout,
+            QWidget,
         )
-        from PySide6.QtGui import QPalette, QColor
     except ImportError:
         print(
             "PySide6 not installed. Run: pip install 'pyxos[gui]'"
@@ -731,8 +731,9 @@ def gui_launch():
                 )
 
                 if encrypt:
-                    from pyxos.crypto import encrypt_archive
                     import getpass as _gp
+
+                    from pyxos.crypto import encrypt_archive
 
                     pw = _gp.getpass("Encryption password: ")
                     archive_path = encrypt_archive(
@@ -740,8 +741,8 @@ def gui_launch():
                     )
 
                 from pyxos.storage import (
-                    upload_project,
                     init_storage,
+                    upload_project,
                 )
 
                 cfg = load_config()
