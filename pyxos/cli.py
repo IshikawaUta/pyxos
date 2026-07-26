@@ -1836,27 +1836,6 @@ def web(host, port):
     app.run(host=host, port=port, app_path="pyxos.web.app:app")
 
 
-@main.command("gui")
-def gui_app():
-    """Launch the desktop GUI application."""
-    try:
-        from pyxos.gui.main import gui_launch
-        _ = gui_launch  # referenced via subprocess
-    except ImportError:
-        rprint("[red]✗ Optional dependency 'PySide6' is not installed.[/red]")
-        rprint("[yellow]Install it with:[/yellow]", end=" ")
-        click.echo('pip install "pyxos[gui]"')
-        raise SystemExit(1)
-
-    # Launch GUI directly after flushing Rich output
-    import signal as _sig
-
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-    _sig.signal(_sig.SIGABRT, lambda *_: sys.exit(0))
-    gui_launch()
-
 
 # ── completion ───────────────────────────────────────────────────────────────
 
@@ -2028,7 +2007,6 @@ def watch(path, interval, name):
             return False, 0, 0
 
     def _render_live(last_push, fchanged, pcount):
-        datetime.now(timezone.utc)
         last_push_str = last_push.strftime("%Y-%m-%d %H:%M:%S UTC") if last_push else "Never"
         lines = [
             f"[bold cyan]Watching: {project_name}[/bold cyan]",
@@ -2053,8 +2031,7 @@ def watch(path, interval, name):
                         live.update("[cyan]Pushing changes...[/cyan]", refresh=True)
                         success, size, fcount = _do_push()
                         if success:
-                            last_push_time = time.time()
-                            push_count += 1
+                            last_push_time = datetime.now(timezone.utc)
                             files_changed = 0
                             live.update(f"[green]✓ Pushed ({_format_size(size)}, {fcount} files)[/green]", refresh=True)
                         else:

@@ -152,33 +152,37 @@ def _b2_upload_large(archive_path, b2_file_name, file_size):
     part_sha1s = []
     completed = 0
 
-    with Progress(
-        TextColumn("[cyan]Uploading large file to Backblaze B2...[/cyan]"),
-        BarColumn(),
-        "[progress.percentage]{task.percentage:>3.0f}%",
-        "•",
-        TransferSpeedColumn(),
-        TextColumn("[dim]{task.fields[part_info]}[/dim]"),
-    ) as progress:
-        task = progress.add_task("upload", total=file_size, part_info="")
+    try:
+        with Progress(
+            TextColumn("[cyan]Uploading large file to Backblaze B2...[/cyan]"),
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            "•",
+            TransferSpeedColumn(),
+            TextColumn("[dim]{task.fields[part_info]}[/dim]"),
+        ) as progress:
+            task = progress.add_task("upload", total=file_size, part_info="")
 
-        for part_number in range(1, total_parts + 1):
-            offset = (part_number - 1) * B2_CHUNK_SIZE
-            length = min(B2_CHUNK_SIZE, file_size - offset)
+            for part_number in range(1, total_parts + 1):
+                offset = (part_number - 1) * B2_CHUNK_SIZE
+                length = min(B2_CHUNK_SIZE, file_size - offset)
 
-            progress.update(task, part_info=f"Part {part_number}/{total_parts}")
+                progress.update(task, part_info=f"Part {part_number}/{total_parts}")
 
-            result = _b2_bucket.upload_part(
-                large_file.file_id,
-                part_number,
-                UploadSourceLocalFileRange(str(archive_path), offset=offset, length=length),
-            )
+                result = _b2_bucket.upload_part(
+                    large_file.file_id,
+                    part_number,
+                    UploadSourceLocalFileRange(str(archive_path), offset=offset, length=length),
+                )
 
-            part_sha1s.append(result.content_sha1)
-            completed += length
-            progress.update(task, completed=completed)
+                part_sha1s.append(result.content_sha1)
+                completed += length
+                progress.update(task, completed=completed)
 
-    _b2_bucket.finish_large_file(large_file.file_id, part_sha1s)
+        _b2_bucket.finish_large_file(large_file.file_id, part_sha1s)
+    except Exception:
+        _b2_bucket.cancel_large_file(large_file.file_id)
+        raise
 
     url = _b2_bucket.get_download_url(b2_file_name)
     return url, b2_file_name
@@ -235,11 +239,17 @@ def _download_url(url, public_id, dest_dir, resume=True):
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     archive_filename = public_id.replace("/", "_")
-    archive_path = dest_dir / (archive_filename + ".zip")
-    part_path = dest_dir / (archive_filename + ".zip.part")
+    if not archive_filename.endswith(".zip"):
+        archive_filename += ".zip"
+    archive_path = dest_dir / archive_filename
+    part_path = dest_dir / (archive_filename + ".part")
 
     mode = "ab" if resume and part_path.exists() else "wb"
-    downloaded = part_path.stat().st_size if resume and part_path.exists() else 0
+    try:
+        downloaded = part_path.stat().st_size if resume and part_path.exists() else 0
+    except OSError:
+        downloaded = 0
+        mode = "wb"
 
     opener = urllib.request.build_opener()
     if downloaded > 0 and resume:
