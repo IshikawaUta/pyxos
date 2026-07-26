@@ -175,15 +175,18 @@ Pyxos/
 │           ├── projects.html
 │           └── stats.html
 └── tests/
+    ├── __init__.py
     ├── conftest.py
     ├── test_cache.py
     ├── test_cli.py
     ├── test_config.py
     ├── test_crypto.py
     ├── test_database.py
+    ├── test_gui.py
     ├── test_parallel.py
     ├── test_storage.py
-    └── test_web.py
+    ├── test_web.py
+    └── test_web_routes.py
 ```
 
 ### Alur Data
@@ -219,7 +222,10 @@ pyxos push [PATH] [OPTIONS]
 | `--no-confirm-size` | | Skip konfirmasi untuk project >50 MB |
 | `--exclude` | `-e` | Pattern tambahan untuk dikecualikan (bisa diulang) |
 | `--include` | `-i` | Paksa sertakan file meski kena exclude (bisa diulang) |
-| `--encrypt` | | Enkripsi arsip sebelum upload (akan diminta password) |
+| `--encrypt` | `-E` | Enkripsi arsip sebelum upload (akan diminta password) |
+| `--password` | | Password enkripsi (atau set `PYXOS_PASSWORD` env var) |
+| `--compress-level` | | Tingkat kompresi 0-9 (default: 6) |
+| `--no-hooks` | | Lewati hooks pre/post push |
 
 > **Catatan:** Cloudinary free tier membatasi upload ke **10 MB**. Project >10 MB akan otomatis ditolak dengan pesan jelas. Gunakan B2 storage untuk project besar.
 
@@ -253,8 +259,8 @@ pyxos pull [QUERY] [OPTIONS]
 | Flag | Singkat | Deskripsi |
 |---|---|---|
 | `--output` | `-o` | Direktori output (default: `.`) |
-| `--force` | `-f` | Timpa direktori jika sudah ada |
-| `--decrypt` | | Dekripsi arsip setelah download (akan diminta password) |
+| `--force` | `-f` | Timpa jika direktori sudah ada |
+| `--no-hooks` | | Lewati hooks pre/post pull |
 
 **Contoh:**
 
@@ -310,8 +316,14 @@ pyxos list --json
 ### `pyxos info` — Detail satu project
 
 ```bash
-pyxos info [QUERY]
+pyxos info [QUERY] [OPTIONS]
 ```
+
+Menampilkan informasi detail tentang project termasuk nama, ukuran, versi, tag, storage backend, dan timestamp.
+
+| Flag | Deskripsi |
+|------|-----------|
+| `--no-cache` | Lewati cache, ambil data langsung dari database |
 
 Menampilkan: ID, versi, deskripsi, tags, jumlah file, ukuran, local path, storage URL, created_at, updated_at.
 
@@ -403,9 +415,9 @@ Menampilkan perbedaan file antara direktori project lokal dan versi remote.
 
 | Flag | Singkat | Deskripsi |
 |---|---|---|
-| `--path` | `-p` | Override path project lokal |
+| `--output` | `-o` | Override path project lokal |
 
-> **Enkripsi:** Gunakan `--encrypt` pada `push` untuk enkripsi arsip sebelum upload, dan `--decrypt` pada `pull` untuk dekripsi setelah download. Keduanya meminta password secara interaktif.
+> **Enkripsi:** Gunakan `--encrypt` pada `push` untuk enkripsi arsip sebelum upload. Project terenkripsi otomatis terdeteksi dan didekripsi saat `pull` (akan diminta password).
 
 ### `pyxos share` — Buat link share
 
@@ -417,8 +429,8 @@ Membuat link download sementara untuk project.
 
 | Flag | Singkat | Deskripsi |
 |---|---|---|
-| `--expires` | `-e` | Durasi kedaluwarsa dalam detik (default: 3600) |
-| `--clipboard` | `-c` | Salin URL ke clipboard |
+| `--expires` | `-e` | Durasi kedaluwarsa dalam jam (default: 24) |
+| `--copy` | | Salin URL ke clipboard |
 
 ### `pyxos stats` — Statistik project
 
@@ -438,7 +450,7 @@ Rollback ke versi project sebelumnya yang tersimpan di version history.
 
 | Flag | Singkat | Deskripsi |
 |---|---|---|
-| `--to` | | Rollback ke versi spesifik |
+| `--version` | `-v` | Rollback ke versi spesifik ID |
 
 ### `pyxos clone` — Clone project
 
@@ -455,16 +467,17 @@ Clone/download project remote ke direktori lokal baru.
 ### `pyxos tags` — Kelola tag project
 
 ```bash
-pyxos tags [QUERY] [OPTIONS]
+pyxos tags [COMMAND]
 ```
 
-Tambah, hapus, atau tampilkan tag project.
+Kelola tag pada project. Sub-perintah:
 
-| Flag | Singkat | Deskripsi |
-|---|---|---|
-| `--add` | `-a` | Tambah tag (dipisah koma) |
-| `--remove` | `-r` | Hapus tag (dipisah koma) |
-| `--list` | `-l` | Tampilkan semua tag |
+| Perintah | Deskripsi |
+|----------|-----------|
+| `pyxos tags add <QUERY> <TAG...>` | Tambah satu atau lebih tag ke project |
+| `pyxos tags remove <QUERY> <TAG...>` | Hapus satu atau lebih tag dari project |
+| `pyxos tags set <QUERY> <TAG...>` | Ganti semua tag pada project |
+| `pyxos tags list [QUERY]` | Tampilkan tag (semua project atau spesifik) |
 
 ### `pyxos config` — Kelola konfigurasi
 
@@ -488,6 +501,7 @@ Ekspor metadata project ke JSON.
 |---|---|---|
 | `--all` | | Ekspor semua project |
 | `--output` | `-o` | Path file output |
+| `--format` | `-f` | Format output: `json` atau `csv` |
 
 ### `pyxos import` — Impor database
 
@@ -496,6 +510,10 @@ pyxos import FILE [OPTIONS]
 ```
 
 Impor project dari file JSON hasil ekspor.
+
+| Flag | Deskripsi |
+|------|-----------|
+| `--merge` | Timpa project yang sudah ada berdasarkan nama |
 
 ### `pyxos watch` — Pantau dan auto-push
 
@@ -507,7 +525,7 @@ Pantau direktori untuk perubahan dan push otomatis. Gunakan `watchfiles` jika te
 
 | Flag | Singkat | Deskripsi |
 |---|---|---|
-| `--interval` | `-i` | Interval debounce dalam detik (default: 3.0) |
+| `--interval` | `-i` | Interval debounce dalam detik (default: 2.0) |
 | `--name` | `-n` | Nama project |
 
 ### `pyxos web` — Dashboard web
@@ -617,7 +635,7 @@ Koleksi: `pyxos.projects`
 |---|---|---|
 | [click](https://click.palletsprojects.com) | >=8.1 | CLI framework |
 | [rich](https://rich.readthedocs.io) | >=13 | Tabel, panel, progress bar, spinner |
-| [pymongo](https://pymongo.readthedocs.io) | >=4.6 | MongoDB driver (+SRV support) |
+| [pymongo[srv]](https://pymongo.readthedocs.io) | >=4.6 | MongoDB driver (+SRV support) |
 | [cloudinary](https://cloudinary.com/documentation/python_integration) | >=1.36 | Cloudinary SDK |
 | [b2sdk](https://github.com/Backblaze/b2-sdk-python) | >=2.0 | Backblaze B2 SDK |
 | [cryptography](https://cryptography.io) | >=41 | AES-256-CBC enkripsi/dekripsi |
@@ -629,7 +647,7 @@ Koleksi: `pyxos.projects`
 | `[web]` | [fenrir-framework](https://github.com/IshikawaUta/fenrir) | Dashboard web (`pyxos web`) |
 | `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | File watching efisien (`pyxos watch`) |
 | `[gui]` | [PySide6](https://wiki.qt.io/Qt_for_Python) | GUI desktop (`pyxos gui`) |
-| `[clipboard]` | [pyperclip](https://github.com/asweigart/pyperclip) | Dukungan clipboard (`pyxos share -c`) |
+| `[clipboard]` | [pyperclip](https://github.com/asweigart/pyperclip) | Dukungan clipboard (`pyxos share --copy`) |
 
 ```bash
 pip install "pyxos[web,watch]"

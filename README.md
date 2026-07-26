@@ -159,7 +159,7 @@ Pyxos/
 │   │   └── main.py          # Desktop GUI (PySide6)
 │   └── web/
 │       ├── __init__.py
-│       ├── app.py          # Web dashboard (optional)
+│       ├── app.py            # Web dashboard (optional)
 │       ├── static/
 │       │   └── style.css
 │       └── templates/
@@ -171,15 +171,18 @@ Pyxos/
 │           ├── projects.html
 │           └── stats.html
 └── tests/
+    ├── __init__.py
     ├── conftest.py
     ├── test_cache.py
     ├── test_cli.py
     ├── test_config.py
     ├── test_crypto.py
     ├── test_database.py
+    ├── test_gui.py
     ├── test_parallel.py
     ├── test_storage.py
-    └── test_web.py
+    ├── test_web.py
+    └── test_web_routes.py
 ```
 
 ### Data Flow
@@ -215,7 +218,10 @@ pyxos push [PATH] [OPTIONS]
 | `--no-confirm-size` | | Skip confirmation for projects >50 MB |
 | `--exclude` | `-e` | Extra patterns to exclude (repeatable) |
 | `--include` | `-i` | Force-include patterns despite exclusions (repeatable) |
-| `--encrypt` | | Encrypt archive before uploading (prompts for password) |
+| `--encrypt` | `-E` | Encrypt archive before uploading (prompts for password) |
+| `--password` | | Encryption password (or set `PYXOS_PASSWORD` env var) |
+| `--compress-level` | | Compression level 0-9 (default: 6) |
+| `--no-hooks` | | Skip pre/post push hooks |
 
 > **Note:** Cloudinary free tier limits uploads to **10 MB**. Projects >10 MB are automatically rejected with a clear message. Use B2 storage for large projects.
 
@@ -250,7 +256,7 @@ pyxos pull [QUERY] [OPTIONS]
 |---|---|---|
 | `--output` | `-o` | Output directory (default: `.`) |
 | `--force` | `-f` | Overwrite if directory already exists |
-| `--decrypt` | | Decrypt archive after downloading (prompts for password) |
+| `--no-hooks` | | Skip pre/post pull hooks |
 
 **Examples:**
 
@@ -306,8 +312,14 @@ pyxos list --json
 ### `pyxos info` — Project details
 
 ```bash
-pyxos info [QUERY]
+pyxos info [QUERY] [OPTIONS]
 ```
+
+Displays detailed information about a project, including name, size, versions, tags, storage backend, and timestamps.
+
+| Flag | Description |
+|------|-------------|
+| `--no-cache` | Skip cache, force fresh data from database |
 
 Displays: ID, version, description, tags, file count, size, local path, storage URL, created_at, updated_at.
 
@@ -399,9 +411,9 @@ Shows file differences between local project directory and remote version.
 
 | Flag | Short | Description |
 |---|---|---|
-| `--path` | `-p` | Override local project path |
+| `--output` | `-o` | Override local project path |
 
-> **Encryption:** Use `--encrypt` on `push` to encrypt the archive before uploading, and `--decrypt` on `pull` to decrypt after downloading. Both prompt for password interactively.
+> **Encryption:** Use `--encrypt` on `push` to encrypt the archive before uploading. Encrypted projects are automatically detected and decrypted on `pull` (prompts for password).
 
 ### `pyxos share` — Generate share link
 
@@ -413,8 +425,8 @@ Generates a temporary download link for a project.
 
 | Flag | Short | Description |
 |---|---|---|
-| `--expires` | `-e` | Expiration in seconds (default: 3600) |
-| `--clipboard` | `-c` | Copy URL to clipboard |
+| `--expires` | `-e` | Expiration time in hours (default: 24) |
+| `--copy` | | Copy URL to clipboard |
 
 ### `pyxos stats` — Show project statistics
 
@@ -434,7 +446,7 @@ Rollback to a previous version of a project stored in the version history.
 
 | Flag | Short | Description |
 |---|---|---|
-| `--to` | | Rollback to specific version |
+| `--version` | `-v` | Rollback to specific version ID |
 
 ### `pyxos clone` — Clone a project
 
@@ -451,16 +463,17 @@ Clone/download a remote project to a new local directory.
 ### `pyxos tags` — Manage project tags
 
 ```bash
-pyxos tags [QUERY] [OPTIONS]
+pyxos tags [COMMAND]
 ```
 
-Add, remove, or list tags on a project.
+Manage tags on projects. Subcommands:
 
-| Flag | Short | Description |
-|---|---|---|
-| `--add` | `-a` | Add tags (comma-separated) |
-| `--remove` | `-r` | Remove tags (comma-separated) |
-| `--list` | `-l` | List all tags |
+| Command | Description |
+|---------|-------------|
+| `pyxos tags add <QUERY> <TAG...>` | Add one or more tags to a project |
+| `pyxos tags remove <QUERY> <TAG...>` | Remove one or more tags from a project |
+| `pyxos tags set <QUERY> <TAG...>` | Replace all tags on a project |
+| `pyxos tags list [QUERY]` | List tags (all projects or specific project) |
 
 ### `pyxos config` — Manage configuration
 
@@ -484,6 +497,7 @@ Export project metadata to JSON.
 |---|---|---|
 | `--all` | | Export all projects |
 | `--output` | `-o` | Output file path |
+| `--format` | `-f` | Output format: `json` or `csv` |
 
 ### `pyxos import` — Import database
 
@@ -492,6 +506,10 @@ pyxos import FILE [OPTIONS]
 ```
 
 Import projects from a JSON export file.
+
+| Flag | Description |
+|------|-------------|
+| `--merge` | Overwrite existing projects by name |
 
 ### `pyxos watch` — Watch and auto-push
 
@@ -503,7 +521,7 @@ Watch a directory for changes and automatically push. Uses efficient `watchfiles
 
 | Flag | Short | Description |
 |---|---|---|
-| `--interval` | `-i` | Debounce interval in seconds (default: 3.0) |
+| `--interval` | `-i` | Debounce interval in seconds (default: 2.0) |
 | `--name` | `-n` | Project name |
 
 ### `pyxos web` — Web dashboard
@@ -613,7 +631,7 @@ Collection: `pyxos.projects`
 |---|---|---|
 | [click](https://click.palletsprojects.com) | >=8.1 | CLI framework |
 | [rich](https://rich.readthedocs.io) | >=13 | Tables, panels, progress bars, spinners |
-| [pymongo](https://pymongo.readthedocs.io) | >=4.6 | MongoDB driver (+SRV support) |
+| [pymongo[srv]](https://pymongo.readthedocs.io) | >=4.6 | MongoDB driver (+SRV support) |
 | [cloudinary](https://cloudinary.com/documentation/python_integration) | >=1.36 | Cloudinary SDK |
 | [b2sdk](https://github.com/Backblaze/b2-sdk-python) | >=2.0 | Backblaze B2 SDK |
 | [cryptography](https://cryptography.io) | >=41 | AES-256-CBC encryption/decryption |
@@ -625,7 +643,7 @@ Collection: `pyxos.projects`
 | `[web]` | [fenrir-framework](https://github.com/IshikawaUta/fenrir) | Web dashboard (`pyxos web`) |
 | `[watch]` | [watchfiles](https://github.com/samuelcolvin/watchfiles) | Efficient file watching (`pyxos watch`) |
 | `[gui]` | [PySide6](https://wiki.qt.io/Qt_for_Python) | Desktop GUI (`pyxos gui`) |
-| `[clipboard]` | [pyperclip](https://github.com/asweigart/pyperclip) | Clipboard support (`pyxos share -c`) |
+| `[clipboard]` | [pyperclip](https://github.com/asweigart/pyperclip) | Clipboard support (`pyxos share --copy`) |
 
 Install with extras:
 

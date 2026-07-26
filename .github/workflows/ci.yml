@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    concurrency:
+      group: test-${{ matrix.python-version }}-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -20,6 +23,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install system dependencies
         run: sudo apt-get update -y && sudo apt-get install -y libegl1
