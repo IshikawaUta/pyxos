@@ -24,6 +24,7 @@ dev = [
     "pytest>=7",
     "pytest-cov>=4",
     "pytest-qt>=4",
+    "pyside6>=6.5",
     "fenrir-framework>=0.1",
 ]
 web = [
